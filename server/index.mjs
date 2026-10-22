@@ -4,8 +4,9 @@ import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {randomBytes,timingSafeEqual} from 'node:crypto';
 import {Accounts,ApiError} from './service.mjs';
+import {resendMailer} from './email.mjs';
 const here=path.dirname(fileURLToPath(import.meta.url));
-export async function startService({directory=path.resolve('.account-service'),port=Number(process.env.PORT||4783),host=process.env.HOST||'127.0.0.1',adminEmail=process.env.EMBER_ADMIN_EMAIL||'nicolas2mv@gmail.com',publicUrl=process.env.PUBLIC_URL}={}){
+export async function startService({directory=path.resolve('.account-service'),port=Number(process.env.PORT||4783),host=process.env.HOST||'127.0.0.1',adminEmail=process.env.EMBER_ADMIN_EMAIL||'nicolas2mv@gmail.com',publicUrl=process.env.PUBLIC_URL,sendReset=resendMailer()}={}){
  await mkdir(directory,{recursive:true});
  const accounts=new Accounts(path.join(directory,'accounts.sqlite'),adminEmail);
  const setupToken=randomBytes(32).toString('hex');
@@ -32,13 +33,16 @@ export async function startService({directory=path.resolve('.account-service'),p
     try{body=JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw new ApiError(400,'Invalid JSON.');}
     if(!body||typeof body!=='object'||Array.isArray(body))throw new ApiError(400,'Invalid request.');
    }
-   if(['/api/login','/api/register','/api/setup'].includes(route)){
+   if(['/api/login','/api/register','/api/setup','/api/forgot-password','/api/reset-password'].includes(route)){
     const now=Date.now();for(const [k,v] of limits)if(v.until<now)limits.delete(k);
     const keys=[`${route}:ip:${req.socket.remoteAddress}`,`${route}:identity:${String(body.identifier||body.email||'').toLowerCase().slice(0,254)}`];
     for(const key of keys){const v=limits.get(key)||{count:0,until:now+900000};if(++v.count>20||limits.size>10000)throw new ApiError(429,'Too many attempts. Try again in 15 minutes.');limits.set(key,v);}
    }
    let result;
-   if(req.method==='POST'&&route==='/api/setup'){
+   if(req.method==='GET'&&route==='/api/setup-status')result={setupNeeded:!!accounts.setupNeeded()};
+   else if(req.method==='POST'&&route==='/api/forgot-password')result=await accounts.forgotPassword(body.email,sendReset,origin);
+   else if(req.method==='POST'&&route==='/api/reset-password')result=await accounts.resetPassword(body);
+   else if(req.method==='POST'&&route==='/api/setup'){
     const local=['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
     const supplied=Buffer.from(String(body.token||''));const wanted=Buffer.from(setupToken);
     if(!local||supplied.length!==wanted.length||!timingSafeEqual(supplied,wanted))throw new ApiError(403,'Use the one-time setup link on the server computer.');

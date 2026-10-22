@@ -5,7 +5,62 @@ import os from 'node:os';
 import path from 'node:path';
 import {Accounts,validMedia} from './service.mjs';
 import {startService} from './index.mjs';
+import {resendMailer} from './email.mjs';
 const password='Test-password-only-29381';
+
+test('reset links are hashed, expiring, single-use, revoke sessions and preserve approval status',async()=>{
+ let now=Date.now();const a=new Accounts(':memory:','owner@example.com',()=>now),sent=[];
+ const send=async mail=>sent.push(mail),origin='https://accounts.example.com',next='New-password-only-29381';
+ try{
+  await a.bootstrap(password);const admin=(await a.login({identifier:'owner@example.com',password})).token;
+  const known=await a.forgotPassword('OWNER@example.com',send,origin),unknown=await a.forgotPassword('missing@example.com',send,origin);
+  assert.deepEqual(known,unknown);assert.equal(sent.length,1);assert.equal(sent[0].to,'owner@example.com');
+  const token=new URL(sent[0].url).hash.slice(7);
+  assert.notEqual(a.db.prepare('SELECT token FROM password_resets').get().token,token);
+  await assert.rejects(a.resetPassword({token,password:'short'}),/12 and 128/);
+  await a.resetPassword({token,password:next});
+  assert.throws(()=>a.authorize(admin),/expired/);await assert.rejects(a.login({identifier:'owner@example.com',password}),/Invalid/);
+  assert.equal((await a.login({identifier:'owner@example.com',password:next})).user.role,'admin');
+  await assert.rejects(a.resetPassword({token,password:next}),/invalid or expired/);
+  await a.register({email:'player@example.com',username:'player',password});
+  await a.forgotPassword('player@example.com',send,origin);const expired=new URL(sent.at(-1).url).hash.slice(7);now+=30*60000;
+  await assert.rejects(a.resetPassword({token:expired,password:next}),/expired/);
+  await a.forgotPassword('player@example.com',send,origin);await a.resetPassword({token:new URL(sent.at(-1).url).hash.slice(7),password:next});
+  await assert.rejects(a.login({identifier:'player',password:next}),/awaiting approval/);
+  await assert.rejects(a.forgotPassword('owner@example.com',undefined,origin),/not configured/);
+  await assert.rejects(a.forgotPassword('owner@example.com',async()=>{throw Error('provider secret');},origin),/could not be sent/);
+  assert.equal(a.db.prepare('SELECT COUNT(*) n FROM password_resets').get().n,0);
+ }finally{a.close();}
+});
+
+test('Resend adapter sends server-side text email and handles delivery errors',async()=>{
+ assert.equal(resendMailer({apiKey:'',from:''}),undefined);
+ let request;
+ const send=resendMailer({apiKey:'fixture-key',from:'Ember <sender@example.com>',request:async(url,options)=>{request={url,...options};return new Response('{}');}});
+ await send({to:'player@example.com',url:'https://accounts.example.com/#reset=fixture'});
+ assert.equal(request.url,'https://api.resend.com/emails');assert.equal(request.headers.Authorization,'Bearer fixture-key');
+ const body=JSON.parse(request.body);assert.deepEqual(body.to,['player@example.com']);assert.match(body.text,/#reset=fixture/);
+ await assert.rejects(resendMailer({apiKey:'fixture',from:'sender@example.com',request:async()=>new Response('{}',{status:403})})({to:'player@example.com',url:'https://example.com'}),/rejected/);
+});
+
+test('HTTP reset flow protects origin, hides account existence and reports setup state',async()=>{
+ const root=await mkdtemp(path.join(os.tmpdir(),'ember-reset-http-')),sent=[];
+ const s=await startService({directory:root,port:0,adminEmail:'owner@example.com',sendReset:async mail=>sent.push(mail)});
+ const post=(route,body,extra={})=>fetch(s.url+'/api/'+route,{method:'POST',headers:{'Content-Type':'application/json',...extra},body:JSON.stringify(body)});
+ try{
+  assert.equal((await (await fetch(s.url+'/api/setup-status')).json()).setupNeeded,true);
+  await s.accounts.bootstrap(password);
+  assert.equal((await (await fetch(s.url+'/api/setup-status')).json()).setupNeeded,false);
+  assert.equal((await post('forgot-password',{email:'owner@example.com'},{Origin:'https://evil.example'})).status,403);
+  assert.equal((await post('forgot-password',{email:'owner@example.com'})).status,200);
+  const token=new URL(sent[0].url).hash.slice(7);
+  assert.equal((await post('reset-password',{token,password:'Changed-password-29381'})).status,200);
+  assert.equal((await post('reset-password',{token,password:'Changed-password-29381'})).status,400);
+  assert.equal((await post('login',{identifier:'owner@example.com',password:'Changed-password-29381'})).status,200);
+  for(let i=0;i<20;i++)await post('forgot-password',{email:'missing@example.com'});
+  assert.equal((await post('forgot-password',{email:'missing@example.com'})).status,429);
+ }finally{await s.close();await rm(root,{recursive:true,force:true});}
+});
 
 test('registration cannot claim the administrator username before setup',async()=>{
  const a=new Accounts(':memory:','owner@example.com');

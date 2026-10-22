@@ -18,9 +18,15 @@ Sandboxed runs initially failed on temporary-file access and local network conne
 ## Remaining work and recommended order
 
 1. Host one persistent HTTPS account service for shared laptop/desktop accounts and Updates. Local service operation is verified; public deployment is not provisioned by this change.
-2. Add password recovery, verified email and administrator MFA before broader account rollout. Cooldowns currently track recorded identities only.
+2. Password recovery is now implemented with Resend configuration required for live delivery; add verified email and administrator MFA before broader account rollout. Cooldowns currently track recorded identities only.
 3. Validate real Steam ownership/achievements with the user's own credentials and game installations on each machine. Fixture success does not prove every provider, torrent or external installer works; availability depends on hosts and peers.
 4. Add continuous integration for the launcher tests, account tests and build, followed by Windows Electron smoke coverage. Split optional live-provider checks from deterministic fixture checks.
 5. Consider loading media/player code on demand to reduce the current bundle warning, then download bandwidth controls and update/repair orchestration. Updates currently means team announcements, not an automatic launcher/game updater.
 
 Actual desktop hardware, macOS packaging/game execution, signing and production deployment remain unverified here. There is no automatic cross-device library/save synchronization. The existing account UI test requires Microsoft Edge. Historical milestone documents describe earlier alphas; README and alpha.16 account documentation describe current setup.
+
+## Password recovery follow-up
+
+Added Resend-backed password recovery on the launcher and admin website, single-use hashed reset tokens with 30-minute expiry, session invalidation and password confirmation. Added eye buttons to launcher and website password fields. Existing-admin setup links now lead to login, including same-tab link navigation, and setup includes an explicit login route. Both account startup commands load private `.env` configuration; no new package is required.
+
+Validation: all 71 launcher tests and seven account/email/HTTP tests passed, production build passed, and expanded browser/Electron coverage verified reset-link emails through an isolated capture adapter, new-password login on both surfaces, password eyes and existing-account login from old setup links. Live Resend delivery still requires the user's API key and verified sender; see ACCOUNTS.md.

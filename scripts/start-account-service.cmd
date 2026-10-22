@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0.."
-node server/index.mjs
+node --env-file-if-exists=.env server/index.mjs
 pause

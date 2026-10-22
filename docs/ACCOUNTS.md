@@ -8,7 +8,24 @@ On the first run, the terminal prints a one-time setup link. Open that link **on
 
 Open the website and log in with that administrator account to approve/reject/revoke users. New users request accounts from the Ember login screen, with a username, email and password. Pending accounts cannot log in. Approval permits login immediately, including after restarting the launcher. A rejection requires the same account to wait a full 24 hours before submitting another request using its original password. A revoked account cannot reapply; the administrator may approve it again.
 
-This cooldown applies to the recorded email/username, not a verified real-world person. It does not prevent someone creating a different identity. There is no email verification, password recovery, or MFA in this version. Keep backups and use this as a controlled beta service; add those capabilities before a wider public launch.
+This cooldown applies to the recorded email/username, not a verified real-world person. It does not prevent someone creating a different identity. There is no email verification or MFA in this version. Keep backups and use this as a controlled beta service; add those capabilities before a wider public launch.
+
+## Existing administrator login and password recovery
+
+Open the website root, **http://127.0.0.1:4783**, to log in with your existing administrator email (or `ember-admin`) and password. Old setup links now detect an existing administrator and show login automatically; setup also has an explicit login button. Setup cannot replace an existing administrator password. The launcher and website use the same password only when connected to the same account service/database; a different computer's local service has separate accounts.
+
+Password fields on the launcher and website have accessible show/hide eye buttons. **Forgot password?** accepts the account email on either login screen. The email links to the account website's password-change form, which supports ordinary users and administrators. After changing it, return to Ember and log in with the new password. Password reset preserves pending/rejected/revoked status; it does not grant approval.
+
+### Configure Resend on the account server
+
+1. Set up a verified sender domain and sending API key in [Resend](https://resend.com/docs/api-reference/emails/send-email).
+2. Copy `.env.example` to `.env` in the repository root. Set `RESEND_API_KEY` and `EMBER_EMAIL_FROM` to your real server-only credentials/sender. Do not paste keys into chat or commit `.env`.
+3. For shared accounts, set `PUBLIC_URL` to the account service's HTTPS origin, reachable from the recipient's device. Local testing uses `http://127.0.0.1:4783`; a localhost email link opens the service on the recipient's current computer.
+4. Restart using `npm run accounts` or `scripts/start-account-service.cmd`; both load `.env`. Hosted/container deployments may supply these variables through their secret configuration instead.
+
+No email is sent until valid credentials are configured. Missing configuration or provider failures produce a clear error, rather than claiming delivery. Unit/browser tests capture fixture emails and do not validate live inbox delivery. A real delivery check requires your configured Resend account and sender.
+
+Reset tokens are random, stored only as SHA-256 hashes, expire after 30 minutes, and are consumed transactionally. A successful reset invalidates all reset links and login sessions for that account. Tokens are carried in a URL fragment and removed from the browser address immediately. Recovery endpoints are rate-limited, enforce same-origin requests and do not return tokens or disclose whether an email exists on successful requests. Backups contain hashes, not reset links; keep the account database private.
 
 ## Start the launcher
 

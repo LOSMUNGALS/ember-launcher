@@ -627,6 +627,7 @@ else
         if(type==='accountStatus') { if(accounts.user) await accounts.require().catch(()=>{}); return accounts.status(); }
         if(type==='accountLogin') return accounts.login(p);
         if(type==='accountRegister') return accounts.request('register',p);
+        if(type==='accountForgotPassword') return accounts.request('forgot-password',p);
         if(type==='accountLogout') return accounts.logout();
         if(type==='accountConfigure') return accounts.configure(String(p.url));
         await accounts.require();

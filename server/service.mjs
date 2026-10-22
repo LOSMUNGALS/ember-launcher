@@ -39,6 +39,7 @@ export class Accounts {
   this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
    CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,email TEXT UNIQUE COLLATE NOCASE,username TEXT UNIQUE COLLATE NOCASE,password TEXT NOT NULL,status TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'user',retryAt INTEGER NOT NULL DEFAULT 0,created INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,userId INTEGER REFERENCES users(id),expires INTEGER);
+   CREATE TABLE IF NOT EXISTS password_resets(token TEXT PRIMARY KEY,userId INTEGER REFERENCES users(id),expires INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS posts(id INTEGER PRIMARY KEY,body TEXT NOT NULL,media TEXT NOT NULL,created INTEGER NOT NULL,author INTEGER REFERENCES users(id));
    CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,actor INTEGER,action TEXT,target INTEGER,created INTEGER);`);
  }
@@ -76,11 +77,43 @@ export class Accounts {
   const ok=await matches(password,u?.password||'00000000000000000000000000000000:'+ '00'.repeat(64));
   if(!u||!ok)fail(401,'Invalid username/email or password.');
   const current=this.db.prepare('SELECT * FROM users WHERE id=?').get(u.id);
+  if(current.password!==u.password)fail(401,'Password changed. Log in again.');
   if(current.status!=='approved')fail(403,current.status==='pending'?'Your account is awaiting approval.':current.status==='rejected'?`Request rejected. You may request again after ${new Date(current.retryAt).toISOString()}.`:'Your access has been revoked. Contact the administrator.');
   const token=randomBytes(32).toString('base64url');
   this.db.prepare('DELETE FROM sessions WHERE expires<?').run(this.now());
   this.db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(digest(token),u.id,this.now()+7*DAY);
   return {token,user:this.publicUser(current)};
+ }
+ async forgotPassword(email,sendReset,origin){
+  email=String(email||'').trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)fail(400,'Enter a valid email address.');
+  if(!sendReset)fail(503,'Password reset email is not configured. Contact the administrator.');
+  const user=this.db.prepare('SELECT id,email FROM users WHERE email=?').get(email);
+  if(user){
+   const token=randomBytes(32).toString('base64url'),hashed=digest(token);
+   this.db.prepare('DELETE FROM password_resets WHERE expires<=?').run(this.now());
+   this.db.prepare('INSERT INTO password_resets VALUES(?,?,?)').run(hashed,user.id,this.now()+30*60000);
+   try{await sendReset({to:user.email,url:origin+'/#reset='+token});}
+   catch{this.db.prepare('DELETE FROM password_resets WHERE token=?').run(hashed);fail(503,'Password reset email could not be sent. Try again later or contact the administrator.');}
+  }
+  return {message:'If an account exists for that email, a password reset link has been sent. Check your inbox and spam folder. The link expires in 30 minutes.'};
+ }
+ async resetPassword(p){
+  const token=String(p.token||'');
+  if(!/^[A-Za-z0-9_-]{43}$/.test(token))fail(400,'This reset link is invalid or expired. Request a new one.');
+  if(typeof p.password!=='string'||p.password.length<12||p.password.length>128)fail(400,'Use a password between 12 and 128 characters.');
+  const hash=await hashPassword(p.password);
+  this.db.exec('BEGIN IMMEDIATE');
+  try{
+   const reset=this.db.prepare('SELECT userId FROM password_resets WHERE token=? AND expires>?').get(digest(token),this.now());
+   if(!reset)fail(400,'This reset link is invalid or expired. Request a new one.');
+   this.db.prepare('UPDATE users SET password=? WHERE id=?').run(hash,reset.userId);
+   this.db.prepare('DELETE FROM sessions WHERE userId=?').run(reset.userId);
+   this.db.prepare('DELETE FROM password_resets WHERE userId=?').run(reset.userId);
+   this.db.prepare('INSERT INTO audit(actor,action,target,created) VALUES(?,?,?,?)').run(reset.userId,'password-reset',reset.userId,this.now());
+   this.db.exec('COMMIT');
+  }catch(e){this.db.exec('ROLLBACK');throw e;}
+  return {message:'Password changed. Log in to Ember with your new password. Account approval requirements still apply.'};
  }
  publicUser(u){return {id:u.id,username:u.username,email:u.email,role:u.role};}
  authorize(token,admin=false){

@@ -12,7 +12,7 @@
     "package": "npm run build && electron-builder --dir",
     "package:win": "npm run build && electron-builder --win portable",
     "package:mac": "npm run build && electron-builder --mac zip --arm64",
-    "accounts": "node server/index.mjs",
+    "accounts": "node --env-file-if-exists=.env server/index.mjs",
     "test:accounts": "node --test server/service.test.mjs",
     "smoke:accounts": "node scripts/verify-accounts.mjs"
   },
