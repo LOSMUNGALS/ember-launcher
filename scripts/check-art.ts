@@ -1,0 +1,2 @@
+import {jsonHttps} from '../desktop/http';import {matchSteamTitle} from '../desktop/title-match';
+void(async()=>{for(const name of ['Enshrouded','Baldur\'s Gate 3','A Bird Story','A Building Full of Cats']){const r=await jsonHttps('https://store.steampowered.com/api/storesearch/?term='+encodeURIComponent(name)+'&l=english&cc=US');console.log(name,JSON.stringify(r.items?.map((x:any)=>({id:x.id,name:x.name,type:x.type}))),matchSteamTitle(name,r.items));}})();

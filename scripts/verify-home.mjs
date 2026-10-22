@@ -1,0 +1,18 @@
+import {_electron as electron} from 'playwright';
+import {mkdir,mkdtemp,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+await mkdir('.test-data',{recursive:true});const root=await mkdtemp(path.resolve('.test-data/home-'));const steam=path.join(root,'Steam');await mkdir(path.join(steam,'steamapps'),{recursive:true});
+await writeFile(path.join(root,'library.json'),JSON.stringify({version:1,steamRoots:[steam],settings:{wine:'',prefix:'',graphics:'default'},games:[{id:'local-fixture',name:'Played fixture',executable:process.execPath,installed:true,store:'local',platform:'native',seconds:20,lastPlayed:'2026-10-19T10:00:00Z',added:'2026-10-19',args:[],description:''}]}));
+const metadata={appId:'322170',title:'Artwork fixture',cover:'https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/322170/header.jpg',banner:'',screenshots:[],description:'',developers:[],publishers:[],genres:[],tags:[],platforms:['windows'],comingSoon:false,releaseDate:'',content:'allowed',updated:new Date().toISOString()};
+await writeFile(path.join(root,'ember2.json'),JSON.stringify({preferences:{region:'US',concurrency:2,minimumPositive:70,minimumReviews:10,catalogUrl:''},sources:[],downloads:[],catalog:{'322170':metadata},rankings:{ids:[],region:'US',source:'Test fixture',nextRefresh:Date.now()+3600000},ownership:{ids:[]},visits:1}));
+const env={...process.env,EMBER_DATA_DIR:root};delete env.ELECTRON_RUN_AS_NODE;const options=process.env.EMBER_TEST_EXECUTABLE?{executablePath:path.resolve(process.env.EMBER_TEST_EXECUTABLE),args:[],env}:{args:['.'],env};const app=await electron.launch(options);
+try{const page=await app.firstWindow();await page.locator('.v2-app').waitFor();await page.emulateMedia({reducedMotion:'reduce'});const cards=page.locator('.v2-card');const art=cards.filter({hasText:'Artwork fixture'}).locator('img');await art.scrollIntoViewIfNeeded();const deadline=Date.now()+30000;while(!await art.evaluate(img=>img.complete&&img.naturalWidth>0)){if(Date.now()>deadline)throw Error('Steam CDN image did not load');await new Promise(r=>setTimeout(r,200));}
+ assert.equal(await page.locator('.v2-hero .eyebrow').innerText(),'DISCOVER SOMETHING NEW');assert.match(await page.locator('.v2-hero h1').innerText(),/Artwork fixture/);
+ for(const button of await page.locator('.card-play').all()){const layout=await button.evaluate(el=>{const r=el.getBoundingClientRect(),c=el.closest('.v2-card').getBoundingClientRect();return {position:getComputedStyle(el).position,inside:r.top>=c.top&&r.bottom<=c.bottom+1};});assert.equal(layout.position,'static');assert.equal(layout.inside,true);}
+ await page.route('https://**.steamstatic.com/**',r=>r.abort());await page.reload();await page.locator('.v2-app').waitFor();await page.locator('.v2-card').filter({hasText:'Artwork fixture'}).scrollIntoViewIfNeeded();await page.locator('[aria-label="Artwork unavailable for Artwork fixture"]').waitFor();assert.equal(await page.locator('.v2-hero .eyebrow').innerText(),'DISCOVER SOMETHING NEW');
+ console.log('PASS: real Steam CDN artwork loads through CSP; failed artwork has a clean fallback; card Play buttons remain inside cards; startup alternates discovery and recent game.');
+}finally{await app.close();}
+
+const restarted=await electron.launch(options);try{const page=await restarted.firstWindow();await page.locator('.v2-app').waitFor();assert.equal(await page.locator('.v2-hero .eyebrow').innerText(),'PICK UP WHERE YOU LEFT OFF');assert.equal(await page.locator('.v2-hero h1').innerText(),'Played fixture');console.log('PASS: next desktop startup features the recent game.');}finally{await restarted.close();}
+

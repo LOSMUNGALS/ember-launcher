@@ -1,0 +1,13 @@
+node_modules/
+dist/
+release/
+.test-data/
+artifacts/
+*.log
+handoff/
+.env
+.env.*
+!.env.example
+steam-key.bin
+.DS_Store
+Thumbs.db

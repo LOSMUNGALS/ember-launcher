@@ -1,0 +1,802 @@
+{
+  "source": "https://steamdb.info/stats/mostwished/",
+  "snapshot_date": "2026-10-21",
+  "ranking": "SteamDB most wishlisted upcoming Steam products",
+  "note": "Wishlist totals are not public. Followers are not wishlist counts. Snapshot based on the SteamDB web index; chart changes over time. One age-restricted entry is omitted; original rank numbers are retained.",
+  "source_rows": 100,
+  "included_rows": 99,
+  "games": [
+    {
+      "rank": 1,
+      "name": "Deadlock",
+      "release": "TBA",
+      "followers": 473687,
+      "followers_7d_gain": 17234,
+      "type": "game"
+    },
+    {
+      "rank": 2,
+      "name": "Light No Fire",
+      "release": "TBA",
+      "followers": 249408,
+      "followers_7d_gain": 498,
+      "type": "game"
+    },
+    {
+      "rank": 3,
+      "name": "Dear Passengers",
+      "release": "2026",
+      "followers": 99489,
+      "followers_7d_gain": 1927,
+      "type": "game"
+    },
+    {
+      "rank": 4,
+      "name": "Fable",
+      "release": "Feb 2027",
+      "followers": 142205,
+      "followers_7d_gain": 647,
+      "type": "game"
+    },
+    {
+      "rank": 5,
+      "name": "Blight: Survival",
+      "release": "TBA",
+      "followers": 159506,
+      "followers_7d_gain": 284,
+      "type": "game"
+    },
+    {
+      "rank": 6,
+      "name": "Phantom Blade Zero",
+      "release": "Oct 2026",
+      "followers": 122380,
+      "followers_7d_gain": 6450,
+      "type": "game"
+    },
+    {
+      "rank": 7,
+      "name": "Total War: WARHAMMER 40,000",
+      "release": "TBA",
+      "followers": 138288,
+      "followers_7d_gain": 765,
+      "type": "game"
+    },
+    {
+      "rank": 8,
+      "name": "Resident Evil Veronica",
+      "release": "2027",
+      "followers": 77602,
+      "followers_7d_gain": 1253,
+      "type": "game"
+    },
+    {
+      "rank": 9,
+      "name": "Kingmakers",
+      "release": "Soon",
+      "followers": 110240,
+      "followers_7d_gain": 2151,
+      "type": "game"
+    },
+    {
+      "rank": 10,
+      "name": "Witchbrook",
+      "release": "2026",
+      "followers": 117911,
+      "followers_7d_gain": 512,
+      "type": "game"
+    },
+    {
+      "rank": 11,
+      "name": "ILL",
+      "release": "2027",
+      "followers": 86943,
+      "followers_7d_gain": 321,
+      "type": "game"
+    },
+    {
+      "rank": 12,
+      "name": "ARK 2",
+      "release": "TBA",
+      "followers": 146563,
+      "followers_7d_gain": 51,
+      "type": "game"
+    },
+    {
+      "rank": 13,
+      "name": "Soulframe",
+      "release": "Soon",
+      "followers": 76664,
+      "followers_7d_gain": 394,
+      "type": "game"
+    },
+    {
+      "rank": 14,
+      "name": "METRO 2039",
+      "release": "Feb 2027",
+      "followers": 83729,
+      "followers_7d_gain": 3674,
+      "type": "game"
+    },
+    {
+      "rank": 15,
+      "name": "Unrecord",
+      "release": "TBA",
+      "followers": 139031,
+      "followers_7d_gain": 34,
+      "type": "game"
+    },
+    {
+      "rank": 16,
+      "name": "The Witcher 3: Wild Hunt — Songs of the Past",
+      "release": "Soon",
+      "followers": null,
+      "followers_7d_gain": null,
+      "type": "DLC"
+    },
+    {
+      "rank": 17,
+      "name": "Persona 4 Revival",
+      "release": "Feb 2027",
+      "followers": 57922,
+      "followers_7d_gain": 378,
+      "type": "game"
+    },
+    {
+      "rank": 18,
+      "name": "Warhammer 40,000: Dawn of War IV",
+      "release": "Dec 2026",
+      "followers": 92633,
+      "followers_7d_gain": 680,
+      "type": "game"
+    },
+    {
+      "rank": 19,
+      "name": "Tides of Annihilation",
+      "release": "Soon",
+      "followers": 68986,
+      "followers_7d_gain": 151,
+      "type": "game"
+    },
+    {
+      "rank": 20,
+      "name": "The Expanse: Osiris Reborn",
+      "release": "Q2 2027",
+      "followers": 88807,
+      "followers_7d_gain": 643,
+      "type": "game"
+    },
+    {
+      "rank": 21,
+      "name": "Tomb Raider: Legacy of Atlantis",
+      "release": "Feb 2027",
+      "followers": 56364,
+      "followers_7d_gain": 371,
+      "type": "game"
+    },
+    {
+      "rank": 22,
+      "name": "Chrono Odyssey",
+      "release": "TBA",
+      "followers": 117838,
+      "followers_7d_gain": 241,
+      "type": "game"
+    },
+    {
+      "rank": 23,
+      "name": "Warhammer 40,000: Dark Heresy",
+      "release": "Soon",
+      "followers": 64718,
+      "followers_7d_gain": 372,
+      "type": "game"
+    },
+    {
+      "rank": 24,
+      "name": "State of Decay 3",
+      "release": "TBA",
+      "followers": 69093,
+      "followers_7d_gain": 577,
+      "type": "game"
+    },
+    {
+      "rank": 25,
+      "name": "Vindictus: Defying Fate",
+      "release": "2027",
+      "followers": 93599,
+      "followers_7d_gain": 137,
+      "type": "game"
+    },
+    {
+      "rank": 26,
+      "name": "NAKWON: LAST PARADISE",
+      "release": "TBA",
+      "followers": 96748,
+      "followers_7d_gain": 197,
+      "type": "game"
+    },
+    {
+      "rank": 27,
+      "name": "Chronicles: Medieval",
+      "release": "2027",
+      "followers": 81578,
+      "followers_7d_gain": 332,
+      "type": "game"
+    },
+    {
+      "rank": 28,
+      "name": "PUBG: Black Budget",
+      "release": "TBA",
+      "followers": 124723,
+      "followers_7d_gain": 72,
+      "type": "game"
+    },
+    {
+      "rank": 29,
+      "name": "Railborn",
+      "release": "2027",
+      "followers": 57803,
+      "followers_7d_gain": 234,
+      "type": "game"
+    },
+    {
+      "rank": 30,
+      "name": "Rooted",
+      "release": "2027",
+      "followers": 111315,
+      "followers_7d_gain": 80,
+      "type": "game"
+    },
+    {
+      "rank": 31,
+      "name": "Rules of Engagement: The Grey State",
+      "release": "TBA",
+      "followers": 56048,
+      "followers_7d_gain": 216,
+      "type": "game"
+    },
+    {
+      "rank": 32,
+      "name": "Alkahest",
+      "release": "TBA",
+      "followers": 61087,
+      "followers_7d_gain": 1090,
+      "type": "game"
+    },
+    {
+      "rank": 33,
+      "name": "Persona 6",
+      "release": "TBA",
+      "followers": 35799,
+      "followers_7d_gain": 355,
+      "type": "game"
+    },
+    {
+      "rank": 34,
+      "name": "Showa American Story",
+      "release": "2026",
+      "followers": 63951,
+      "followers_7d_gain": 81,
+      "type": "game"
+    },
+    {
+      "rank": 35,
+      "name": "Falling Frontier",
+      "release": "Soon",
+      "followers": 100719,
+      "followers_7d_gain": 87,
+      "type": "game"
+    },
+    {
+      "rank": 36,
+      "name": "Ardem",
+      "release": "2027",
+      "followers": 73277,
+      "followers_7d_gain": 577,
+      "type": "game"
+    },
+    {
+      "rank": 37,
+      "name": "Call of Duty®: Modern Warfare® 4",
+      "release": "Oct 2026",
+      "followers": null,
+      "followers_7d_gain": null,
+      "type": "DLC"
+    },
+    {
+      "rank": 38,
+      "name": "Guild Wars 3™",
+      "release": "TBA",
+      "followers": 68546,
+      "followers_7d_gain": 760,
+      "type": "game"
+    },
+    {
+      "rank": 39,
+      "name": "Beautiful Light",
+      "release": "Dec 2026",
+      "followers": 71608,
+      "followers_7d_gain": 271,
+      "type": "game"
+    },
+    {
+      "rank": 40,
+      "name": "The Bustling World",
+      "release": "TBA",
+      "followers": 84114,
+      "followers_7d_gain": 61,
+      "type": "game"
+    },
+    {
+      "rank": 41,
+      "name": "Haunted Paws",
+      "release": "TBA",
+      "followers": 40595,
+      "followers_7d_gain": 740,
+      "type": "game"
+    },
+    {
+      "rank": 42,
+      "name": "NO LAW",
+      "release": "2027",
+      "followers": 39708,
+      "followers_7d_gain": 170,
+      "type": "game"
+    },
+    {
+      "rank": 44,
+      "name": "PVKK: Planetenverteidigungskanonenkommandant",
+      "release": "2027",
+      "followers": 48231,
+      "followers_7d_gain": 64,
+      "type": "game"
+    },
+    {
+      "rank": 45,
+      "name": "Emberville",
+      "release": "Oct 2026",
+      "followers": 45393,
+      "followers_7d_gain": 2422,
+      "type": "game"
+    },
+    {
+      "rank": 46,
+      "name": "FINAL FANTASY RESONANCE",
+      "release": "Oct 2026",
+      "followers": 33906,
+      "followers_7d_gain": 3688,
+      "type": "game"
+    },
+    {
+      "rank": 47,
+      "name": "Family Time",
+      "release": "Q1 2027",
+      "followers": 44592,
+      "followers_7d_gain": 3221,
+      "type": "game"
+    },
+    {
+      "rank": 48,
+      "name": "Grave Seasons",
+      "release": "Mar 2027",
+      "followers": 39453,
+      "followers_7d_gain": 201,
+      "type": "game"
+    },
+    {
+      "rank": 49,
+      "name": "P.O.N.",
+      "release": "Soon",
+      "followers": 28695,
+      "followers_7d_gain": 65,
+      "type": "game"
+    },
+    {
+      "rank": 50,
+      "name": "Hela: of Mice & Magic",
+      "release": "Dec 2026",
+      "followers": 38236,
+      "followers_7d_gain": 650,
+      "type": "game"
+    },
+    {
+      "rank": 51,
+      "name": "Clockwork Revolution",
+      "release": "2027",
+      "followers": 38635,
+      "followers_7d_gain": 46,
+      "type": "game"
+    },
+    {
+      "rank": 52,
+      "name": "Dust Front RTS",
+      "release": "TBA",
+      "followers": 54989,
+      "followers_7d_gain": 419,
+      "type": "game"
+    },
+    {
+      "rank": 53,
+      "name": "FINAL FANTASY VII REVELATION",
+      "release": "Apr 2027",
+      "followers": 27646,
+      "followers_7d_gain": 624,
+      "type": "game"
+    },
+    {
+      "rank": 54,
+      "name": "HUNGER",
+      "release": "Soon",
+      "followers": 55261,
+      "followers_7d_gain": 3024,
+      "type": "game"
+    },
+    {
+      "rank": 55,
+      "name": "Neverway",
+      "release": "2027",
+      "followers": 32312,
+      "followers_7d_gain": 144,
+      "type": "game"
+    },
+    {
+      "rank": 56,
+      "name": "Euro Truck Simulator 2 - Coaches",
+      "release": "TBA",
+      "followers": null,
+      "followers_7d_gain": null,
+      "type": "DLC"
+    },
+    {
+      "rank": 57,
+      "name": "KARLSON",
+      "release": "Soon",
+      "followers": 163017,
+      "followers_7d_gain": 37,
+      "type": "game"
+    },
+    {
+      "rank": 58,
+      "name": "STRANGER THAN HEAVEN",
+      "release": "Jan 2027",
+      "followers": 27309,
+      "followers_7d_gain": 1035,
+      "type": "game"
+    },
+    {
+      "rank": 59,
+      "name": "EXODUS",
+      "release": "Apr 2027",
+      "followers": 42479,
+      "followers_7d_gain": 153,
+      "type": "game"
+    },
+    {
+      "rank": 60,
+      "name": "Car Mechanic Simulator 2027",
+      "release": "Q1 2027",
+      "followers": 25846,
+      "followers_7d_gain": 472,
+      "type": "game"
+    },
+    {
+      "rank": 61,
+      "name": "The Lost Wild",
+      "release": "2027",
+      "followers": 42984,
+      "followers_7d_gain": 105,
+      "type": "game"
+    },
+    {
+      "rank": 62,
+      "name": "Drunken Goddess Reflux",
+      "release": "TBA",
+      "followers": 26832,
+      "followers_7d_gain": 2644,
+      "type": "game"
+    },
+    {
+      "rank": 63,
+      "name": "KYORA",
+      "release": "Soon",
+      "followers": 37169,
+      "followers_7d_gain": 60,
+      "type": "game"
+    },
+    {
+      "rank": 64,
+      "name": "God Save Birmingham",
+      "release": "TBA",
+      "followers": 48670,
+      "followers_7d_gain": 179,
+      "type": "game"
+    },
+    {
+      "rank": 65,
+      "name": "Anvil Empires",
+      "release": "TBA",
+      "followers": 71407,
+      "followers_7d_gain": 178,
+      "type": "game"
+    },
+    {
+      "rank": 66,
+      "name": "ArcheAge Chronicles",
+      "release": "TBA",
+      "followers": 56118,
+      "followers_7d_gain": 8287,
+      "type": "game"
+    },
+    {
+      "rank": 67,
+      "name": "Stronghold 4",
+      "release": "Dec 2026",
+      "followers": 40452,
+      "followers_7d_gain": 811,
+      "type": "game"
+    },
+    {
+      "rank": 68,
+      "name": "BLACKFROST: The Long Dark 2",
+      "release": "2027",
+      "followers": 51039,
+      "followers_7d_gain": 284,
+      "type": "game"
+    },
+    {
+      "rank": 69,
+      "name": "Wyldheart",
+      "release": "Soon",
+      "followers": 36817,
+      "followers_7d_gain": 2251,
+      "type": "game"
+    },
+    {
+      "rank": 70,
+      "name": "Drakantos",
+      "release": "Soon",
+      "followers": 63013,
+      "followers_7d_gain": 100,
+      "type": "game"
+    },
+    {
+      "rank": 71,
+      "name": "Euro Truck Simulator 2 - Heart of Russia",
+      "release": "Soon",
+      "followers": null,
+      "followers_7d_gain": null,
+      "type": "DLC"
+    },
+    {
+      "rank": 72,
+      "name": "Frostrail",
+      "release": "Q4 2026",
+      "followers": 37678,
+      "followers_7d_gain": 2349,
+      "type": "game"
+    },
+    {
+      "rank": 73,
+      "name": "Don't Starve Elsewhere",
+      "release": "TBA",
+      "followers": 33213,
+      "followers_7d_gain": 216,
+      "type": "game"
+    },
+    {
+      "rank": 74,
+      "name": "Paradise",
+      "release": "Soon",
+      "followers": 123131,
+      "followers_7d_gain": 165,
+      "type": "game"
+    },
+    {
+      "rank": 75,
+      "name": "Monster Hunter Wilds: Ascendance",
+      "release": "2027",
+      "followers": null,
+      "followers_7d_gain": null,
+      "type": "DLC"
+    },
+    {
+      "rank": 76,
+      "name": "Threads of Time",
+      "release": "TBA",
+      "followers": 35768,
+      "followers_7d_gain": 104,
+      "type": "game"
+    },
+    {
+      "rank": 77,
+      "name": "Fourteen Years of Flames",
+      "release": "TBA",
+      "followers": 79008,
+      "followers_7d_gain": 183,
+      "type": "game"
+    },
+    {
+      "rank": 78,
+      "name": "Outward 2",
+      "release": "Feb 2027",
+      "followers": 42234,
+      "followers_7d_gain": 290,
+      "type": "game"
+    },
+    {
+      "rank": 79,
+      "name": "Zeverland",
+      "release": "Soon",
+      "followers": 37500,
+      "followers_7d_gain": 580,
+      "type": "game"
+    },
+    {
+      "rank": 80,
+      "name": "Palworld: Palfarm",
+      "release": "TBA",
+      "followers": 27019,
+      "followers_7d_gain": 74,
+      "type": "game"
+    },
+    {
+      "rank": 81,
+      "name": "Atomic Heart 2",
+      "release": "TBA",
+      "followers": 27566,
+      "followers_7d_gain": 117,
+      "type": "game"
+    },
+    {
+      "rank": 82,
+      "name": "Den of Wolves",
+      "release": "TBA",
+      "followers": 34582,
+      "followers_7d_gain": 49,
+      "type": "game"
+    },
+    {
+      "rank": 83,
+      "name": "DREADMOOR",
+      "release": "Nov 2026",
+      "followers": 25305,
+      "followers_7d_gain": 1646,
+      "type": "game"
+    },
+    {
+      "rank": 84,
+      "name": "Holstin",
+      "release": "TBA",
+      "followers": 33383,
+      "followers_7d_gain": 148,
+      "type": "game"
+    },
+    {
+      "rank": 85,
+      "name": "Lords of the Fallen II",
+      "release": "Soon",
+      "followers": 21475,
+      "followers_7d_gain": 181,
+      "type": "game"
+    },
+    {
+      "rank": 86,
+      "name": "ONTOS",
+      "release": "2027",
+      "followers": 21602,
+      "followers_7d_gain": 84,
+      "type": "game"
+    },
+    {
+      "rank": 87,
+      "name": "Streets of Rogue 2",
+      "release": "Soon",
+      "followers": 36680,
+      "followers_7d_gain": 47,
+      "type": "game"
+    },
+    {
+      "rank": 88,
+      "name": "THE LIFT: Supernatural Handyman Simulator",
+      "release": "2027",
+      "followers": 30590,
+      "followers_7d_gain": 98,
+      "type": "game"
+    },
+    {
+      "rank": 89,
+      "name": "Prison Architect 2",
+      "release": "TBA",
+      "followers": 40795,
+      "followers_7d_gain": 88,
+      "type": "game"
+    },
+    {
+      "rank": 90,
+      "name": "Crowsworn",
+      "release": "TBA",
+      "followers": 36279,
+      "followers_7d_gain": 69,
+      "type": "game"
+    },
+    {
+      "rank": 91,
+      "name": "beta decay",
+      "release": "TBA",
+      "followers": 47923,
+      "followers_7d_gain": 206,
+      "type": "game"
+    },
+    {
+      "rank": 92,
+      "name": "Warlock: Dungeons & Dragons",
+      "release": "2027",
+      "followers": 22467,
+      "followers_7d_gain": 265,
+      "type": "game"
+    },
+    {
+      "rank": 93,
+      "name": "Cartel Pilots Wanted",
+      "release": "TBA",
+      "followers": 17647,
+      "followers_7d_gain": 114,
+      "type": "game"
+    },
+    {
+      "rank": 94,
+      "name": "Hawthorn",
+      "release": "TBA",
+      "followers": 36844,
+      "followers_7d_gain": 61,
+      "type": "game"
+    },
+    {
+      "rank": 95,
+      "name": "We Are So Cooked",
+      "release": "Q1 2027",
+      "followers": 12443,
+      "followers_7d_gain": 372,
+      "type": "game"
+    },
+    {
+      "rank": 96,
+      "name": "Guardians of the Wild Sky",
+      "release": "Soon",
+      "followers": 32774,
+      "followers_7d_gain": 53,
+      "type": "game"
+    },
+    {
+      "rank": 97,
+      "name": "SPINE - This is Gun Fu",
+      "release": "2027",
+      "followers": 33336,
+      "followers_7d_gain": 943,
+      "type": "game"
+    },
+    {
+      "rank": 98,
+      "name": "Enginefall",
+      "release": "2027",
+      "followers": 33173,
+      "followers_7d_gain": 43,
+      "type": "game"
+    },
+    {
+      "rank": 99,
+      "name": "Game of Thrones: War for Westeros",
+      "release": "2027",
+      "followers": 31848,
+      "followers_7d_gain": 177,
+      "type": "game"
+    },
+    {
+      "rank": 100,
+      "name": "Jurassic Park: Survival",
+      "release": "TBA",
+      "followers": 30355,
+      "followers_7d_gain": 277,
+      "type": "game"
+    }
+  ]
+}

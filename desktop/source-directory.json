@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "application": "Ember Launcher",
+  "description": "Source URL directory only; no game records or download integrations included. URLs have not been verified.",
+  "sources": [
+    {
+      "id": "steamrip",
+      "name": "SteamRip",
+      "source_url": "https://hydralinks.cloud/sources/steamrip.json",
+      "source_format": "json",
+      "integration_status": "unverified",
+      "enabled": false,
+      "usage": "reference_only",
+      "file": "steamrip.json"
+    },
+    {
+      "id": "fitgirl",
+      "name": "fitgirl",
+      "source_url": "https://hydralinks.cloud/sources/fitgirl.json",
+      "source_format": "json",
+      "integration_status": "unverified",
+      "enabled": false,
+      "usage": "reference_only",
+      "file": "fitgirlrepacks.json"
+    },
+    {
+      "id": "onlinefix",
+      "name": "onlinefix",
+      "source_url": "https://hydralinks.cloud/sources/onlinefix.json",
+      "source_format": "json",
+      "integration_status": "unverified",
+      "enabled": false,
+      "usage": "reference_only",
+      "file": "onlinefix.json"
+    },
+    {
+      "id": "dodi",
+      "name": "DODI",
+      "source_url": "https://hydralinks.cloud/sources/dodi.json",
+      "source_format": "json",
+      "integration_status": "unverified",
+      "enabled": false,
+      "usage": "reference_only",
+      "file": "dodi.json"
+    },
+    {
+      "id": "gog",
+      "name": "GOG",
+      "source_url": "https://hydralinks.cloud/sources/gog.json",
+      "source_format": "json",
+      "integration_status": "unverified",
+      "enabled": false,
+      "usage": "reference_only",
+      "file": "gog.json"
+    },
+    {
+      "id": "kaoskrew",
+      "name": "KaOsKrew",
+      "source_url": "https://hydralinks.cloud/sources/kaoskrew.json",
+      "source_format": "json",
+      "integration_status": "unverified",
+      "enabled": false,
+      "usage": "reference_only",
+      "file": "kaoskrew.json"
+    }
+  ]
+}
