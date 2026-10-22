@@ -126,9 +126,14 @@ else
           quitting=true;
         },
         recover:()=>{updating=false;quitting=false;hostDownloads.recoverAfterUpdate();},
+        testRefresh:async()=>{
+          await library.mutate(()=>{});await state.save();updating=false;
+          setImmediate(()=>{if(win&&!win.isDestroyed())win.webContents.reloadIgnoringCache();});
+        },
       },updaterSupported?undefined:'Automatic updates require the installed Windows version of Ember. Source and portable builds are updated manually.');
+      if(!app.isPackaged&&process.env.EMBER_PREVIEW_UPDATE==='1')launcherUpdates.previewTest();
       const describeRelease=async()=>{
-        const release=launcherUpdates.status().release;if(!release||!accounts.user)return;
+        const status=launcherUpdates.status(),release=status.release;if(status.testOnly||!release||!accounts.user)return;
         try{const result=await accounts.request('launcher-release?version='+encodeURIComponent(release.version));launcherUpdates.describe(result.release,release.version);}catch{/* GitHub notes remain available when the account service is offline. */}
       };
       state.data.visits++;
@@ -656,6 +661,10 @@ else
         if(type==='accountConfigure') return accounts.configure(String(p.url));
         await accounts.require();
         if(type==='launcherUpdateStatus'){await describeRelease();return launcherUpdates.status();}
+        if(type==='previewLauncherUpdate'){
+          await accounts.require(true);if(accounts.user?.role!=='admin')throw Error('Administrator access required.');
+          return launcherUpdates.previewTest();
+        }
         if(type==='checkLauncherUpdate'){await launcherUpdates.check();await describeRelease();return launcherUpdates.status();}
         if(type==='installLauncherUpdate')return launcherUpdates.install();
         if(type==='announcementStatus'||type==='readAnnouncements'){

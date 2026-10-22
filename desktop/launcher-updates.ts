@@ -14,7 +14,8 @@ export class LauncherUpdates {
  private checking?:Promise<LauncherUpdateState>;
  private installing?:Promise<void>;
  private originalRelease?:NonNullable<LauncherUpdateState['release']>;
- constructor(private driver:UpdaterDriver|undefined,currentVersion:string,private changed:()=>void,private lifecycle:{prepare:()=>Promise<void>;finish:()=>Promise<void>;recover:()=>void},reason?:string){
+ private beforeTest?:LauncherUpdateState;
+ constructor(private driver:UpdaterDriver|undefined,currentVersion:string,private changed:()=>void,private lifecycle:{prepare:()=>Promise<void>;finish:()=>Promise<void>;recover:()=>void;testRefresh?:()=>Promise<void>},reason?:string){
   this.state={currentVersion,supported:!!driver,phase:driver?'idle':'unsupported',reason};
   if(!driver)return;
   driver.autoDownload=false;driver.autoInstallOnAppQuit=false;driver.autoRunAppAfterInstall=true;
@@ -30,15 +31,23 @@ export class LauncherUpdates {
   driver.on('error',e=>{if(this.state.phase==='installing')this.lifecycle.recover();this.set({phase:'error',error:String(e.message||e).slice(0,1000)});});
  }
  status(){return structuredClone(this.state);}
+ previewTest(){
+  if(this.state.testOnly)return this.status();
+  if(this.installing||this.checking||this.state.release)throw Error('Finish the current launcher update or update check before starting a test.');
+  if(!this.lifecycle.testRefresh)throw Error('Local update testing is not available.');
+  this.beforeTest=this.status();
+  this.set({phase:'available',testOnly:true,error:undefined,release:{version:this.state.currentVersion,title:'Test update — refresh Ember',notes:'# Local update test\nThis is a **refresh-only test** of the update button and dialog.\n- No new version is installed.\n- No application or game files are replaced.\n- Your library and account stay the same.\n\nClick **Update Ember** to refresh the launcher. The update button will disappear afterward.'}});
+  return this.status();
+ }
  describe(release:{version:string;title:string;body:string}|null,expectedVersion=this.state.release?.version){
-  if(!this.state.release||this.state.release.version!==expectedVersion||(release&&release.version!==expectedVersion))return;
+  if(this.state.testOnly||!this.state.release||this.state.release.version!==expectedVersion||(release&&release.version!==expectedVersion))return;
   const next=release?{version:release.version,title:release.title,notes:release.body}:this.originalRelease;
   if(!next)return;
   if(JSON.stringify(next)!==JSON.stringify(this.state.release))this.set({release:next});
  }
  private set(value:Partial<LauncherUpdateState>){this.state={...this.state,...value};this.changed();}
  check():Promise<LauncherUpdateState>{
-  if(!this.driver||this.installing)return Promise.resolve(this.status());
+  if(!this.driver||this.installing||this.state.testOnly)return Promise.resolve(this.status());
   if(this.checking)return this.checking;
   this.set({phase:'checking',error:undefined});
   this.checking=this.driver.checkForUpdates().then(()=>this.status()).catch(e=>{this.set({phase:'error',error:String(e.message||e).slice(0,1000)});return this.status();}).finally(()=>{this.checking=undefined;});
@@ -46,10 +55,15 @@ export class LauncherUpdates {
  }
  install():Promise<void>{
   if(this.installing)return this.installing;
-  if(!this.driver||!this.state.release)return Promise.reject(Error(this.state.reason||'No launcher update is available.'));
+  if((!this.driver&&!this.state.testOnly)||!this.state.release)return Promise.reject(Error(this.state.reason||'No launcher update is available.'));
   this.installing=(async()=>{
    try{
     await this.lifecycle.prepare();
+    if(this.state.testOnly){
+      this.set({phase:'installing'});await this.lifecycle.testRefresh!();
+      const previous=this.beforeTest!;this.beforeTest=undefined;
+      this.set({...previous,testOnly:false,release:previous.release,error:undefined,percent:undefined});return;
+    }
     this.set({phase:'downloading',percent:0,error:undefined});
     const files=await this.driver!.downloadUpdate();
     if(!files.length)throw Error('The update download did not produce an installer.');

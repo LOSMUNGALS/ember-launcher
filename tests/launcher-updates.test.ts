@@ -41,6 +41,24 @@ test('no update clears the available button and a running game prevents the down
  await manager.check();await assert.rejects(manager.install(),/running games/);assert.equal(driver.downloads,0);
  driver.emit('update-not-available',{});assert.equal(manager.status().release,undefined);assert.equal(manager.status().phase,'idle');
 });
+
+test('local test update refreshes once without downloading, installing or changing the version',async()=>{
+ const driver=new Driver(),calls:string[]=[];
+ const manager=new LauncherUpdates(driver,'2.0.0',()=>{},{prepare:async()=>{calls.push('paused');},finish:async()=>{throw Error('real installer handoff must not run');},recover:()=>{calls.push('recover');},testRefresh:async()=>{calls.push('refresh');}});
+ const testState=manager.previewTest();assert.equal(testState.testOnly,true);assert.equal(testState.release?.version,'2.0.0');
+ await manager.check();assert.equal(driver.checks,0);manager.describe({version:'2.0.0',title:'Remote notes',body:'Wrong'});assert.notEqual(manager.status().release?.title,'Remote notes');
+ const first=manager.install(),second=manager.install();assert.equal(first,second);await first;
+ assert.deepEqual(calls,['paused','refresh']);assert.equal(driver.downloads,0);assert.deepEqual(driver.calls,[]);
+ assert.equal(manager.status().currentVersion,'2.0.0');assert.equal(manager.status().release,undefined);assert.equal(manager.status().testOnly,false);
+});
+
+test('source build test refresh works without an updater driver and refuses to replace a real release',async()=>{
+ let refreshes=0;
+ const source=new LauncherUpdates(undefined,'2.0.0',()=>{},{prepare:async()=>{},finish:async()=>{throw Error('must not install');},recover:()=>{},testRefresh:async()=>{refreshes++;}},'Source build');
+ source.previewTest();await source.install();assert.equal(refreshes,1);assert.equal(source.status().supported,false);assert.equal(source.status().phase,'unsupported');
+ const driver=new Driver(),real=new LauncherUpdates(driver,'2.0.0',()=>{},{prepare:async()=>{},finish:async()=>{},recover:()=>{},testRefresh:async()=>{}});
+ await real.check();assert.throws(()=>real.previewTest(),/current launcher update/);
+});
 test('announcement read markers persist per service/account and cannot regress on late responses',async()=>{
  const root=await mkdtemp(path.join(os.tmpdir(),'ember-unread-')),file=path.join(root,'read.json');
  const reader=new AnnouncementRead(file);await reader.load();assert.equal(reader.status('service:alice',1).unread,true);

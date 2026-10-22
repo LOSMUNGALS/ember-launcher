@@ -25,6 +25,12 @@ The current build still carries the alpha version, even though the configured no
 
 ## User update flow
 
+### Local refresh-only test
+
+Administrators can choose **Settings → Launcher updates → Test update (refresh only)**. This creates an explicitly labeled test update only in that running launcher. Open **Update available** beside search, inspect the sample formatted notes, then choose **Update Ember**. Active transfers are paused and saved, the window refreshes, and the update button disappears. The version, account, library and application files remain unchanged. Resume downloads when ready. No release or announcement is published, no installer is downloaded/executed, and an available real update cannot be overwritten by this test.
+
+For source development, quit an already running Ember using its tray menu, then run `npm run start:test-update` to build and open directly with that local test available. The startup flag works only on unpackaged development builds. The test can be repeated from Settings and does not replace the real two-version installer playtest below.
+
 A newer published installer shows **Update available** beside Search games. The dialog contains the administrator's title, version, formatted notes and Close / Update Ember controls. Closing the dialog leaves the update available.
 
 **Update Ember** checks for tracked running games/installation, pauses active and queued game transfers, persists recovery state, downloads and verifies the installer, then hands off to NSIS. Only after those steps does Ember exit. NSIS replaces the installed program and reopens it. The new version no longer offers that same release. The application data directory, accounts-service address, library, saves outside the program directory and download records are retained; the updater does not recursively delete game folders or manually delete the old executable before a verified replacement exists.

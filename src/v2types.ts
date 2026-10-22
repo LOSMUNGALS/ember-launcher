@@ -142,6 +142,7 @@ export interface V2Snapshot {
   message: string;
 }
 export type V2Action =
+  | "previewLauncherUpdate"
   | "launcherUpdateStatus" | "checkLauncherUpdate" | "installLauncherUpdate" | "announcementStatus" | "readAnnouncements"
   | "accountStatus" | "accountLogin" | "accountRegister" | "accountForgotPassword" | "accountLogout" | "accountConfigure" | "updates" | "publishUpdate"
   | "snapshot"

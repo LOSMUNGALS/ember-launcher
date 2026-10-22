@@ -39,6 +39,16 @@ try{
  service.accounts.publish(admin,{body:'Third announcement'});await focus(page);await page.getByRole('status',{name:'Unread announcements',exact:true}).waitFor();
  await page.getByRole('button',{name:'Updates',exact:true}).click();await page.getByText('Third announcement',{exact:true}).waitFor();await page.getByRole('status',{name:'Unread announcements',exact:true}).waitFor({state:'hidden'});
  await page.getByTitle('Home',{exact:true}).click();
+ const currentVersion=(await page.evaluate(()=>window.ember2.call('snapshot'))).launcherUpdate.currentVersion;
+ await page.getByTitle('Settings',{exact:true}).click();await page.getByRole('button',{name:'Test update (refresh only)',exact:true}).click();
+ await page.getByRole('button',{name:'Update available',exact:true}).click();
+ await page.getByRole('dialog',{name:'Ember launcher update'}).getByRole('heading',{name:'Local update test',exact:true}).waitFor();
+ assert.equal((await page.evaluate(()=>window.ember2.call('launcherUpdateStatus'))).testOnly,true);
+ await page.screenshot({path:'artifacts/local-test-update.png'});
+ const reloaded=page.waitForEvent('domcontentloaded');await page.getByRole('dialog').getByRole('button',{name:'Update Ember',exact:true}).click();await reloaded;await page.locator('.v2-app').waitFor();
+ const refreshed=await page.evaluate(()=>window.ember2.call('snapshot'));assert.equal(refreshed.launcherUpdate.currentVersion,currentVersion);assert.equal(refreshed.launcherUpdate.release,undefined);assert.equal(refreshed.launcherUpdate.testOnly,false);
+ assert.equal(await page.getByRole('button',{name:'Update available',exact:true}).count(),0);
+ console.log('PASS: actual local test-update IPC pauses/saves and reloads the renderer, preserves the version/account, and clears the update button without an installer.');
  // UI-only release fixture. No installer is executed; lifecycle/driver ordering is unit-tested.
  await instance.evaluate(({ipcMain,BrowserWindow},release)=>{
   const original=ipcMain._invokeHandlers.get('ember2');let state={currentVersion:'2.0.0',supported:true,phase:'available',release:{version:release.version,title:release.title,notes:release.body}};

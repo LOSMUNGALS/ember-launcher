@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc --noEmit && vite build && node scripts/build.mjs",
     "start": "electron .",
+    "start:test-update": "npm run build && node scripts/start-test-update.mjs",
     "dev": "npm run build && electron .",
     "test": "tsx --test tests/*.test.ts",
     "smoke": "node scripts/smoke.mjs",
