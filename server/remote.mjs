@@ -14,14 +14,17 @@ export class RemoteDatabase {
  };}
  close(){this.transaction?.close();this.client.close();}
 }
-export async function remoteAccounts({url,authToken,adminEmail,client,now}){
+export async function remoteAccounts({url,authToken,adminEmail,client,now,initializationTimeoutMs=30000}){
  if(!client){
   if(!url||!authToken)throw Error('Hosted accounts require TURSO_DATABASE_URL and TURSO_AUTH_TOKEN.');
   const parsed=new URL(url);if(!['libsql:','https:'].includes(parsed.protocol)||parsed.username||parsed.password)throw Error('Use the secure Turso database URL.');
   client=createClient({url,authToken});
  }
  const database=new RemoteDatabase(client),accounts=new AsyncAccounts(database,adminEmail,now);
- try{await accounts.ready;}catch{database.close();throw Error('Cannot initialize the Turso account database. Verify the database URL, token and database engine.');}
+ let timer;
+ try{await Promise.race([accounts.ready,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('timeout')),initializationTimeoutMs);})]);}
+ catch{database.close();throw Error('Cannot initialize the Turso account database within the connection limit. Verify TURSO_DATABASE_URL is the database connection URL (not the dashboard URL), TURSO_AUTH_TOKEN has read/write access, and the database supports the libSQL client.');}
+ finally{clearTimeout(timer);}
  // Serialize complete operations, including transactions, so concurrent HTTP requests
  // cannot share an interactive transaction. One hosted service instance is supported.
  let tail=Promise.resolve();

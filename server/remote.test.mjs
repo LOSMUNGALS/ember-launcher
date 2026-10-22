@@ -34,3 +34,7 @@ test('partial hosted configuration fails instead of using ephemeral SQLite',asyn
  await assert.rejects(remoteAccounts({url:'libsql://example.turso.io',adminEmail:'owner@example.com'}),/require/);
  await assert.rejects(remoteAccounts({url:'http://example.com',authToken:'fixture',adminEmail:'owner@example.com'}),/secure/);
 });
+test('unreachable database fails startup within a bounded time and closes the client',async()=>{
+ let closed=false;const client={execute:()=>new Promise(()=>{}),close:()=>{closed=true;}};
+ await assert.rejects(remoteAccounts({client,adminEmail:'owner@example.com',initializationTimeoutMs:10}),/connection limit/);assert.equal(closed,true);
+});
