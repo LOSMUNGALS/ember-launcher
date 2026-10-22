@@ -82,6 +82,8 @@ The account browser smoke test currently uses Microsoft Edge, which must be inst
 
 ## Tests and builds
 
+The latest [release verification report](docs/RELEASE-VERIFICATION.md) records tested features, artwork coverage, source health and outstanding release gates. A successful build does not certify every external release or Mac execution.
+
 Launcher self-updates and the administrator release editor: see [release publishing and update verification](docs/LAUNCHER-UPDATES.md). `npm run package:installer` builds an unpublished Windows installer candidate with automatic-update support. Portable/source builds remain available for development. The Updates tab has a persistent unread indicator for new announcements.
 
 ```sh
@@ -100,7 +102,7 @@ The Windows release is unsigned. Mac packaging and actual Mac game execution req
 
 See [feed format](docs/PACKAGE-SOURCES.md), [JSON Schema](docs/package-source.schema.json), [architecture](docs/ARCHITECTURE.md) and [progress / acceptance matrix](docs/PROGRESS.md).
 
-No feed is bundled. Supply packages you have permission to distribute. Feed license metadata is a publisher declaration, not an independent legal verification. Supported transports are public HTTPS, supported archives are ZIP; macOS app archives containing symlinks are deliberately rejected. Use a native signed installer for such apps.
+Six community catalog snapshots are bundled; custom JSON sources can also be imported. Their torrent/file-host downloads are separate from automatic installation: community files require manual installation. Verified direct package feeds support managed ZIP installation and explicit native installer handoff. Supply packages you have permission to distribute. Feed license metadata is a publisher declaration, not an independent legal verification. macOS app archives containing symlinks are deliberately rejected. Use a native signed installer for such apps.
 
 This is an alpha, not a claim of universal game compatibility or a complete Steam index. The live public top-seller response returned 98 usable game entries on 2026-10-19, not a guaranteed Top 100, and publishes no reporting window. User tags/wishlist counts and a reliable asset-flip classifier are not available in the current adapter. Rating thresholds are not presented as proof of game quality. Cached recommendations improve as you browse. Huge-library DOM virtualization and advanced bandwidth/update management remain future work; current views use pagination, lazy images and offscreen rendering containment.
 

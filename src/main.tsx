@@ -6,6 +6,7 @@ import { SourcePicker, SourceSettings } from "./DownloadSources";
 import { InfiniteLoader } from './InfiniteLoader';
 import { catalogCandidates } from './catalog-view';
 import {downloadOptions} from './package-matching';
+import {useArtworkTheme} from './useArtworkTheme';
 import { belongsInLibrary } from "./library-membership";
 import { ScreenshotGallery } from "./ScreenshotGallery";
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
@@ -236,6 +237,9 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     if(!r)throw Error('Unable to load more games');
     setResults(old=>[...new Map([...old,...r.games].map(g=>[g.appId,g])).values()]);setPageIndex(n=>n+1);setHasMore(r.hasMore);
   };
+  const themeGame=detail?snap?.games.find(g=>g.id===detail||Boolean(g.catalogId===detail.replace(/^steam-/,''))):home?.heroGame;
+  const themeMeta=detail?detailMeta:home?.heroMeta;
+  const artworkTheme=useArtworkTheme([themeMeta?.portrait,themeGame?.artwork,themeMeta?.cover,themeGame?.hero,themeMeta?.banner],detail?themeGame?.themeColor:home?.heroGame?.themeColor);
   if (!snap)
     return (
       <div className="startup">
@@ -280,7 +284,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     home!;
   const heroId =
     heroGame?.id || (heroMeta ? "steam-" + heroMeta.appId : undefined);
-  const theme = game?.themeColor || heroGame?.themeColor || "#273b40";
+  const theme = artworkTheme;
   function actionButtons(g: Game | undefined, m: CatalogGame | undefined) {
     const id = g?.steamId || g?.catalogId || m?.steamAppId || m?.appId;
     const job = [...state.downloads].reverse().find(j => j.package.steamAppId === id && j.status !== "canceled");

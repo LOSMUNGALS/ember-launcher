@@ -50,7 +50,7 @@ import {
 import type { Game } from "../src/types";
 import type { V2Action, Preferences } from "../src/v2types";
 protocol.registerSchemesAsPrivileged([
-  { scheme: "ember-art", privileges: { standard: true, secure: true } },
+  { scheme: "ember-art", privileges: { standard: true, secure: true, corsEnabled: true } },
 ]);
 if (process.env.EMBER_DATA_DIR)
   app.setPath("userData", path.resolve(process.env.EMBER_DATA_DIR));
@@ -139,11 +139,15 @@ else
       state.data.visits++;
       await state.save();
       protocol.handle("ember-art", async (request) => {
-        const file = artworkFile(request.url, art);
+        const bundled=/^ember-art:\/\/bundled\/(bloodborne\.png|god-of-war-iii\.png|13-sentinels\.jpg)$/.exec(request.url);
+        const file = bundled?path.join(__dirname,'ui',bundled[1]):artworkFile(request.url, art);
         if (!file || request.method !== "GET")
           return new Response("Not found", { status: 404 });
         try {
-          return await net.fetch(pathToFileURL(file).href);
+          const response=await net.fetch(pathToFileURL(file).href);
+          const headers=new Headers(response.headers);
+          headers.set('Access-Control-Allow-Origin','*');
+          return new Response(response.body,{status:response.status,headers});
         } catch {
           return new Response("Not found", { status: 404 });
         }

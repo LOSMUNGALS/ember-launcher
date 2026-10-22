@@ -2,7 +2,7 @@ import {chartSnapshot,chartSource} from './chart-snapshots';
 import {lookupTitle,matchSteamTitle} from './title-match';
 import {steamPortrait} from './store-assets';
 import { jsonHttps, requestHttps } from "./http";
-import {communityCatalog} from './community-catalog';
+import {communityCatalog,officialPages} from './community-catalog';
 import {communityKey} from '../src/community-title';
 import { plainText } from "./steam-dashboard";
 import type { CatalogGame, Preferences } from "../src/v2types";
@@ -179,8 +179,11 @@ export class CatalogService {
     }finally{if(this.communityPending.get(id)===task)this.communityPending.delete(id);}
   }
   private async resolveCommunityDetail(id:string):Promise<CatalogGame> {
-    const entry=this.community().find(g=>g.appId===id);if(!entry)throw Error('Catalog game not found.');
-    const old=this.store.data.catalog[id];if(old&&old.origin!=='community'&&old.artworkVersion===1&&Date.now()-Date.parse(old.updated)<86400000)return old;
+    const old=this.store.data.catalog[id];
+    const entry=this.community().find(g=>g.appId===id)||old;if(!entry)throw Error('Catalog game not found.');
+    if(old&&old.origin!=='community'&&old.artworkVersion===1&&Date.now()-Date.parse(old.updated)<86400000)return old;
+    const official=officialPages[communityKey(entry.title)];
+    if(official){const result={...entry,title:official.title,purchaseUrl:official.url,cover:official.cover||entry.cover,banner:official.cover||entry.banner,platforms:official.platforms||[]};this.store.data.catalog[id]=result;return result;}
     if(entry.purchaseUrl){this.store.data.catalog[id]=entry;return entry;}
     try{
       const result=await this.readJson('https://store.steampowered.com/api/storesearch/?term='+encodeURIComponent(lookupTitle(entry.title))+'&l=english&cc='+this.store.data.preferences.region);

@@ -93,7 +93,7 @@ try {
       if (Date.now() > deadline) throw Error("Cover did not load: " + title);
       await new Promise((r) => setTimeout(r, 200));
     } while (true);
-    assert.match(image[0].src, /library_600x900/);
+    assert.match(image[0].src, /library_600x900|ember-art:\/\/library\/steam-\d+-cover\./);
     assert.ok(image[0].h > image[0].w);
     console.log(title + ": " + image[0].w + "×" + image[0].h);
   }

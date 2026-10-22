@@ -18,6 +18,13 @@ test('title matching strips release noise but refuses ambiguous titles and seque
  assert.equal(matchSteamTitle('A Hat in Time Ultimate Edition',[app('A Hat in Time',10)])?.id,10);
  assert.equal(matchSteamTitle('Portal',[app('Portal 2',20)]),undefined);
  assert.equal(matchSteamTitle('Deadlock',[app('Deadlock',1),app('DeadLock',2)]),undefined);
+ assert.equal(matchSteamTitle('God of War Ragnarok',[app('God of War Ragnarök',1593500)])?.id,1593500);
+ assert.equal(matchSteamTitle('Abathor + Bonus Soundtrack',[app('Abathor',10)])?.id,10);
+ assert.equal(matchSteamTitle('11F + Windows 7 Fix',[app('11F',11)])?.id,11);
+ assert.equal(matchSteamTitle('13 Sentinels: Aegis Rim,',[app('13 Sentinels: Aegis Rim',12)])?.id,12);
+ assert.equal(matchSteamTitle('Portal + DLC',[app('Portal 2',20)]),undefined);
+ assert.equal(matchSteamTitle('A Game About Digging A Hole',[app('A Game About Digging A Hole™',3244220)])?.id,3244220);
+ assert.equal(matchSteamTitle('City Game Studio',[app('City Game Studio: Your Game Dev Adventure Begins',726840)])?.id,726840);
 });
 test('old blank community caches retry and metadata failure retains a verified Steam identity',async()=>{
  const store=new StateStore('unused');store.save=async()=>{};
@@ -38,4 +45,26 @@ test('Coming Soon pagination and Top Sellers use supplied snapshots rather than 
  for(let page=0;page<5;page++){const result=await service.search('coming','',page);ids.push(...result.games.map(g=>g.appId));assert.equal(result.hasMore,page<4);assert.match(result.source,/snapshot/);}
  assert.equal(ids.length,99);assert.equal(new Set(ids).size,99);
  const rankings=await service.refreshRankings();assert.equal(rankings.ids.length,96);assert.match(rankings.source,/snapshot/);assert.equal(rankings.region,'Global');
+});
+
+test('saved community metadata remains readable when its source is removed',async()=>{
+ const store=new StateStore('unused');store.save=async()=>{};
+ store.data.sources=[{enabled:true,id:'test',packages:[{title:'Saved fixture'}]} as PackageSource];
+ const service=new CatalogService(store,async()=>({items:[]}));
+ const entry=service.community()[0];store.data.catalog[entry.appId]=entry;
+ store.data.sources=[];
+ assert.equal((await service.communityDetail(entry.appId)).title,'Saved fixture');
+});
+
+test('official non-Steam artwork does not fabricate Steam identity or console compatibility',async()=>{
+ const store=new StateStore('unused');store.save=async()=>{};
+ store.data.sources=[{enabled:true,id:'test',packages:[{title:'13 Sentinels: Aegis Rim,'},{title:'1nsane'}]} as PackageSource];
+ const service=new CatalogService(store,async()=>{throw Error('Should use verified official metadata');});
+ const consoleGame=service.community().find(m=>m.title==='13 Sentinels: Aegis Rim')!;
+ const result=await service.communityDetail(consoleGame.appId);
+ assert.equal(result.cover,'./13-sentinels.jpg');assert.equal(result.steamAppId,undefined);assert.deepEqual(result.platforms,[]);
+ const pc=service.community().find(m=>m.title==='1nsane')!;
+ store.data.catalog[pc.appId]={...pc,cover:''};store.data.sources=[];
+ const saved=await service.communityDetail(pc.appId);
+ assert.match(saved.cover,/gog-statics.com/);assert.deepEqual(saved.platforms,['windows']);assert.equal(saved.steamAppId,undefined);
 });

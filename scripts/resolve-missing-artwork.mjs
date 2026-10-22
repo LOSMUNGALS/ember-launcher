@@ -1,0 +1,13 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);require('tsx/cjs');
+const {StateStore}=require('../desktop/state.ts');
+const {CatalogService}=require('../desktop/catalog.ts');
+const input=process.argv[2]||path.join(process.env.APPDATA,'ember-launcher');
+const store=new StateStore('unused-audit-state');store.data=JSON.parse(await readFile(path.join(input,'ember2.json'),'utf8'));store.save=async()=>{};
+const report=JSON.parse(await readFile('artifacts/release-artwork-audit.json','utf8'));
+const service=new CatalogService(store);const results=[];let index=0;
+await Promise.all(Array.from({length:2},async()=>{while(index<report.failed.length){const row=report.failed[index++];try{const m=row.id.startsWith('feed-')?await service.communityDetail(row.id):await service.detail(row.id);results.push({id:row.id,title:row.title,matchedTitle:m.title,steamAppId:m.steamAppId||(/^\d+$/.test(m.appId)?m.appId:undefined),portrait:m.portrait,cover:m.cover,origin:m.origin});}catch(e){results.push({...row,error:String(e)});}console.log('Metadata checked',results.length,'of',report.failed.length);}}));
+await writeFile('artifacts/missing-artwork-resolution.json',JSON.stringify(results,null,2));
+console.log(JSON.stringify({checked:results.length,matched:results.filter(r=>r.cover||r.portrait).length,unresolved:results.filter(r=>!r.cover&&!r.portrait).map(r=>r.title)},null,2));
