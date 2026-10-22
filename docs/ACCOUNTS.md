@@ -6,6 +6,8 @@ Use Node.js 24. From the repository folder run `npm run accounts`, or double-cli
 
 On the first run, the terminal prints a one-time setup link. Open that link **on the server computer** and choose an administrator password of at least 12 characters. The initial administrator email is `nicolas2mv@gmail.com`; its username is `ember-admin`. No password is bundled or stored in Git. Subsequent starts do not print a setup link once the administrator exists. Never share a setup link.
 
+The administrator's public display name is **LOSMUNGALS**, both in Ember and on the admin website. All existing and future administrator posts display that author name when read; post IDs, content, dates and audit ownership remain intact. Login email, the existing `ember-admin` login handle, passwords and sessions are unchanged. LOSMUNGALS is reserved against new account registrations.
+
 Open the website and log in with that administrator account to approve/reject/revoke users. New users request accounts from the Ember login screen, with a username, email and password. Pending accounts cannot log in. Approval permits login immediately, including after restarting the launcher. A rejection requires the same account to wait a full 24 hours before submitting another request using its original password. A revoked account cannot reapply; the administrator may approve it again.
 
 This cooldown applies to the recorded email/username, not a verified real-world person. It does not prevent someone creating a different identity. There is no email verification or MFA in this version. Keep backups and use this as a controlled beta service; add those capabilities before a wider public launch.

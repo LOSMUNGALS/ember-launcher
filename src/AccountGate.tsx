@@ -1,6 +1,6 @@
 import React,{useState,useEffect,useCallback,useRef} from 'react';
 import {PasswordInput} from './PasswordInput';
-export type AccountUser={id:number;username:string;email:string;role:'user'|'admin'};
+export type AccountUser={id:number;username:string;displayName?:string;email:string;role:'user'|'admin'};
 export function AccountGate({children}:{children:(user:AccountUser,logout:()=>void)=>React.ReactNode}){
  const [user,setUser]=useState<AccountUser|null>(null),[loaded,setLoaded]=useState(false),[create,setCreate]=useState(false),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[url,setUrl]=useState(''),[identifier,setIdentifier]=useState(''),[username,setUsername]=useState(''),[password,setPassword]=useState('');
  const [forgot,setForgot]=useState(false);

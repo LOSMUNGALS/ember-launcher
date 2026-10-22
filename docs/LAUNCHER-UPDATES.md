@@ -1,10 +1,25 @@
 # Launcher releases and announcement notifications
 
+## Move to Ember 1.0 and publish its next update
+
+The current app version is **1.0.0**, displayed as **Ember 1.0**. It continues the same project; application identity, library storage, account database and login credentials are retained. The administrator and all earlier administrator post bylines display **LOSMUNGALS**.
+
+To use the current source, quit Ember from its tray menu, then run `npm run dev`. Alternatively, after building, run `release/Ember-Setup-1.0.0.exe` to install the Windows candidate manually. The older 2.0 alpha cannot automatically install 1.0.0 because that would be a version downgrade. Do this one-time manual transition without enabling downgrade updates.
+
+For the next real update, **1.0.0 → 1.0.1**:
+
+1. Finish the intended changes and tests. Run `npm version patch --no-git-tag-version` to update both package files to 1.0.1, then `npm run package:installer`.
+2. In the admin website's Launcher release editor, enter version **1.0.1**, the release title and formatted description; select Publish these release notes and save.
+3. Review/commit the tested source and package version changes. On GitHub create a normal release tagged **v1.0.1** and upload the same build's `Ember-Setup-1.0.1.exe`, `.exe.blockmap`, and `latest.yml` from `release/`. Publish it after all three assets are uploaded. Do not upload an older candidate's manifest or blockmap.
+4. An installed 1.0.0 client will offer Update available at its next update check, or immediately after Settings → Check for launcher updates. Confirm the dialog shows 1.0.1 and your notes, then choose Update Ember.
+
+The local refresh-only test does not install these code changes or change a version. It is just a way to rehearse the button/dialog/refresh flow. Public publication and the final installer still follow playtest; building 1.0.0 here does not create a public GitHub release.
+
 ## Edit the release dialog as administrator
 
 Start the account service, open its website and log in as administrator. Under **Launcher release editor**:
 
-1. Enter the release title, version and description. The version must match the application version inside the installer, such as `2.0.1`. Editing a label cannot change the executable's version.
+1. Enter the release title, version and description. The version must match the application version inside the installer, such as `1.0.1`. Editing a label cannot change the executable's version.
 2. Select text and use Heading, Subheading, Bold, Italic, Underline, Strike, Code, Quote, List or Numbered list. Review the live preview. Formatting is parsed into safe elements; HTML is displayed as text.
 3. Save as a draft, or select **Publish these release notes** and save. Only approved users can read published notes; only administrators can list drafts, create or edit releases. Use **Edit release [version]** to change saved fields, including the version. Duplicate versions are rejected.
 4. Optionally export the Markdown notes for the GitHub release. Publishing notes on this website does not build or publish the installer.
@@ -21,7 +36,7 @@ Automatic replacement uses the installed Windows **NSIS** build. Existing portab
 4. Create a GitHub release in `LOSMUNGALS/ember-launcher` with the corresponding version tag. Upload the generated `Ember-Setup-[version].exe`, its `.blockmap` and **latest.yml** from the same build. Upload the assets before publishing the release. Preserve the generated names and SHA-512 values. A source commit or an announcement alone does not create a launcher update.
 5. Publish the release as a normal release, not a draft or prerelease. Clients check at startup, every 15 minutes and using Settings → Launcher updates → Check for launcher updates. No GitHub credential is bundled into clients; distributed update assets must be publicly downloadable.
 
-The current build still carries the alpha version, even though the configured normal-release target generates `latest.yml`; it is an unpublished installer candidate for playtesting, not the first public stable release. Do not upload this candidate manifest to the production feed. The final stable version and public publishing happen after playtest. An existing source or portable user first installs the NSIS version manually to enter the automatic update path.
+The current source is version **1.0.0**, an unpublished candidate until playtest and final publishing. An existing source or portable user first installs the NSIS version manually to enter the automatic update path. Older **2.0.0-alpha** builds also need this one-time manual move to 1.0.0: the updater correctly treats it as a downgrade and must not be forced to install it. Keep the same app ID, product name and user-data location. Future 1.0.1, 1.0.2 and later versions are normal upgrades.
 
 ## User update flow
 

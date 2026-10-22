@@ -11,7 +11,7 @@ export class AccountClient {
  private token='';
  private verifiedAt=0;
  private generation=0;
- user?:{id:number;username:string;email:string;role:'user'|'admin'};
+ user?:{id:number;username:string;displayName?:string;email:string;role:'user'|'admin'};
  url=accountEndpoint(process.env.EMBER_ACCOUNT_URL||(typeof __EMBER_ACCOUNT_URL__==='string'?__EMBER_ACCOUNT_URL__:'http://127.0.0.1:4783'));
  constructor(private root:string){}
  async load(){if(process.env.EMBER_ACCOUNT_URL)return;try{this.url=accountEndpoint(JSON.parse(await readFile(path.join(this.root,'account-service.json'),'utf8')).url);}catch{}}

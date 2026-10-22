@@ -251,6 +251,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
       (detail?.startsWith("steam-")
         ? state.catalog[detail.slice(6)]
         : undefined);
+  const displayVersion=(snap.launcherUpdate?.currentVersion||'1.0.0').split('.').slice(0,2).join('.');
   const native = (m?: CatalogGame, g?: Game) => {
     if (
       snap.platform === "darwin" &&
@@ -542,7 +543,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
           <img src="./launcher.png" alt="Ember icon" />
           {!collapsed && (
             <span>
-              ember<span className="version">2.0</span>
+              ember<span className="version">{displayVersion}</span>
             </span>
           )}
         </button>
@@ -579,7 +580,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
         ))}
         <div className="sidebar-bottom">
           <button className={page==='Updates'?'selected':''} title="Updates" aria-label="Updates" onClick={()=>navigate('Updates')}>✦ {!collapsed&&'Updates'}{unreadUpdates&&<span className="updates-unread" role="status" aria-label="Unread announcements"/>}</button>
-          {!collapsed&&<small>{user.username}{user.role==='admin'?' · Admin':''}</small>}
+          {!collapsed&&<small>{user.displayName||user.username}{user.role==='admin'?' · Admin':''}</small>}
           <button title="Log out" aria-label="Log out" onClick={logout}>↪ {!collapsed&&'Log out'}</button>
           {!collapsed && (
             <>
@@ -1257,7 +1258,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
           ) : null}
         </div>
         <footer className="v2-footer">
-          Ember 2.0 · Native games, thoughtfully together
+          Ember {displayVersion} · Native games, thoughtfully together
           {snap.message && !snap.busy && <span>{snap.message}</span>}
         </footer>
       </main>

@@ -65,7 +65,7 @@ test('HTTP reset flow protects origin, hides account existence and reports setup
 test('registration cannot claim the administrator username before setup',async()=>{
  const a=new Accounts(':memory:','owner@example.com');
  try{
-  for(const username of ['ember-admin','EMBER-ADMIN'])await assert.rejects(a.register({email:'player@example.com',username,password}),/reserved/);
+  for(const username of ['ember-admin','EMBER-ADMIN','LOSMUNGALS','losmungals'])await assert.rejects(a.register({email:'player@example.com',username,password}),/reserved/);
   await a.bootstrap(password);
   assert.equal((await a.login({identifier:'owner@example.com',password})).user.role,'admin');
  }finally{a.close();}
@@ -126,4 +126,19 @@ test('only administrators edit release titles, versions and formatted bodies; dr
   for(const version of ['2.01.0','2.0','2.0.1-alpha..1','2.0.1-01','latest','2.0.1+'])assert.throws(()=>a.saveRelease(admin,{...draft,version}),/version/);
   a.saveRelease(admin,{...draft,id:saved.id,version:'2.0.2',published:false});assert.equal(a.release(user,'2.0.2'),null);
  }finally{a.close();}
+});
+
+test('LOSMUNGALS is displayed for legacy administrator posts without rewriting content or login credentials',async()=>{
+ const root=await mkdtemp(path.join(os.tmpdir(),'ember-author-')),file=path.join(root,'accounts.sqlite');let a=new Accounts(file,'owner@example.com');
+ try{
+  await a.bootstrap(password);const {token,user}=await a.login({identifier:'ember-admin',password});assert.equal(user.displayName,'LOSMUNGALS');assert.equal(user.username,'ember-admin');
+  for(let i=0;i<55;i++)a.publish(token,{body:'Existing post '+i});
+  const stored=a.db.prepare('SELECT * FROM posts ORDER BY id').all();
+  assert.equal(a.db.prepare("SELECT username FROM users WHERE role='admin'").get().username,'ember-admin');
+  a.close();a=new Accounts(file,'owner@example.com');
+  const first=a.posts(token),older=a.posts(token,first.at(-1).id);assert.equal(first.length+older.length,55);assert.ok([...first,...older].every(p=>p.author==='LOSMUNGALS'));
+  assert.deepEqual(a.db.prepare('SELECT * FROM posts ORDER BY id').all(),stored);
+  assert.equal((await a.login({identifier:'owner@example.com',password})).user.displayName,'LOSMUNGALS');
+  assert.equal(a.requests(token).find(u=>u.role==='admin').displayName,'LOSMUNGALS');
+ }finally{a.close();await rm(root,{recursive:true,force:true});}
 });

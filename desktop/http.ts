@@ -53,7 +53,7 @@ export const requestHttps: HttpClient = async (url, headers = {}, signal) => {
       const request = https.get(
         u,
         {
-          headers: { "User-Agent": "Ember/2.0", ...headers },
+          headers: { "User-Agent": "Ember/1.0", ...headers },
           signal,
           lookup: ((hostname: any, options: any, cb: any) => {
             lookup(hostname, { all: true }, (error, addresses) => {

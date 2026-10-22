@@ -54,7 +54,7 @@ export class Accounts {
  async register(p){
   const c=credentials(p);
   if(c.email===this.adminEmail)fail(409,'This address is reserved for the administrator.');
-  if(c.username.toLowerCase()==='ember-admin')fail(409,'This username is reserved for the administrator.');
+  if(['ember-admin','losmungals'].includes(c.username.toLowerCase()))fail(409,'This username is reserved for the administrator.');
   let old=this.db.prepare('SELECT * FROM users WHERE email=? OR username=?').all(c.email,c.username);
   if(old.length>1)fail(409,'Username or email is unavailable.');
   const existing=old[0];
@@ -116,7 +116,7 @@ export class Accounts {
   }catch(e){this.db.exec('ROLLBACK');throw e;}
   return {message:'Password changed. Log in to Ember with your new password. Account approval requirements still apply.'};
  }
- publicUser(u){return {id:u.id,username:u.username,email:u.email,role:u.role};}
+ publicUser(u){return {id:u.id,username:u.username,displayName:u.role==='admin'?'LOSMUNGALS':u.username,email:u.email,role:u.role};}
  authorize(token,admin=false){
   if(typeof token!=='string'||token.length>200)fail(401,'Log in to continue.');
   const u=this.db.prepare("SELECT u.* FROM users u JOIN sessions s ON s.userId=u.id WHERE s.token=? AND s.expires>? AND u.status='approved'").get(digest(token),this.now());
@@ -124,7 +124,7 @@ export class Accounts {
   if(admin&&u.role!=='admin')fail(403,'Administrator access required.');return u;
  }
  logout(token){this.db.prepare('DELETE FROM sessions WHERE token=?').run(digest(token));}
- requests(token){this.authorize(token,true);return this.db.prepare('SELECT id,email,username,status,role,retryAt,created FROM users ORDER BY created DESC').all();}
+ requests(token){this.authorize(token,true);return this.db.prepare('SELECT id,email,username,status,role,retryAt,created FROM users ORDER BY created DESC').all().map(u=>({...u,displayName:u.role==='admin'?'LOSMUNGALS':u.username}));}
  decide(token,id,decision){
   const actor=this.authorize(token,true);if(!['approved','rejected','revoked'].includes(decision))fail(400,'Invalid decision.');
   const u=this.db.prepare('SELECT * FROM users WHERE id=?').get(Number(id));if(!u)fail(404,'Account not found.');if(u.role==='admin')fail(400,'The bootstrap administrator cannot be revoked here.');
@@ -141,7 +141,7 @@ export class Accounts {
   const actor=this.authorize(token,true);
   const version=typeof p.version==='string'?p.version.trim():'',title=typeof p.title==='string'?p.title.trim():'',body=typeof p.body==='string'?p.body.trim():'';
   const match=version.match(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$/);
-  if(version.length>100||!match||match.slice(1,4).some(n=>!Number.isSafeInteger(Number(n)))||match[4]?.split('.').some(n=>!n||(/^\d+$/.test(n)&&n.length>1&&n.startsWith('0')))||match[5]?.split('.').some(n=>!n))fail(400,'Use a version such as 2.0.1. It must match the installer version.');
+  if(version.length>100||!match||match.slice(1,4).some(n=>!Number.isSafeInteger(Number(n)))||match[4]?.split('.').some(n=>!n||(/^\d+$/.test(n)&&n.length>1&&n.startsWith('0')))||match[5]?.split('.').some(n=>!n))fail(400,'Use a version such as 1.0.1. It must match the installer version.');
   if(!title||title.length>200||!body||body.length>20000||typeof p.published!=='boolean')fail(400,'Add a title (1–200 characters), description (1–20,000 characters), and publication status.');
   const id=p.id===undefined?undefined:Number(p.id);if(id!==undefined&&(!Number.isSafeInteger(id)||id<=0))fail(400,'Invalid release ID.');
   if(id!==undefined&&!this.db.prepare('SELECT id FROM launcher_releases WHERE id=?').get(id))fail(404,'Release not found.');
@@ -154,7 +154,7 @@ export class Accounts {
   }catch(e){this.db.exec('ROLLBACK');throw e;}
  }
  latestPost(token){this.authorize(token);return {latest:this.db.prepare('SELECT COALESCE(MAX(id),0) id FROM posts').get().id};}
- posts(token,before=Number.MAX_SAFE_INTEGER){this.authorize(token);return this.db.prepare('SELECT p.id,p.body,p.media,p.created,u.username author FROM posts p JOIN users u ON u.id=p.author WHERE p.id<? ORDER BY p.id DESC LIMIT 50').all(Number(before)||Number.MAX_SAFE_INTEGER).map(p=>({...p,media:JSON.parse(p.media)}));}
+ posts(token,before=Number.MAX_SAFE_INTEGER){this.authorize(token);return this.db.prepare("SELECT p.id,p.body,p.media,p.created,CASE WHEN u.role='admin' THEN 'LOSMUNGALS' ELSE u.username END author FROM posts p JOIN users u ON u.id=p.author WHERE p.id<? ORDER BY p.id DESC LIMIT 50").all(Number(before)||Number.MAX_SAFE_INTEGER).map(p=>({...p,media:JSON.parse(p.media)}));}
  publish(token,p){const u=this.authorize(token,true),body=String(p.body||'').trim();if(!body||body.length>20000)fail(400,'Write an update between 1 and 20,000 characters.');const media=validMedia(p.media||[]);this.db.prepare('INSERT INTO posts(body,media,created,author) VALUES(?,?,?,?)').run(body,JSON.stringify(media),this.now(),u.id);return {ok:true};}
  close(){this.db.close();}
 }
