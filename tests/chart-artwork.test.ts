@@ -4,6 +4,7 @@ import {chartSnapshot} from '../desktop/chart-snapshots';
 import {matchSteamTitle,lookupTitle} from '../desktop/title-match';
 import {CatalogService} from '../desktop/catalog';
 import {StateStore} from '../desktop/state';
+import {refreshOfficialArtwork,communityCatalog} from '../desktop/community-catalog';
 import type {PackageSource} from '../src/v2types';
 test('charts retain original ranks while excluding consoles and hardware',()=>{
  for(const kind of ['coming','top'] as const){const rows=chartSnapshot(kind);const count=kind==='coming'?99:96;assert.equal(rows.length,count);assert.equal(new Set(rows.map(r=>r.chartRank)).size,count);assert.equal(rows[0].chartRank,1);assert.equal(rows.at(-1)?.chartRank,100);assert.ok(rows.every(r=>r.productType!=='hardware'));}
@@ -67,4 +68,17 @@ test('official non-Steam artwork does not fabricate Steam identity or console co
  store.data.catalog[pc.appId]={...pc,cover:''};store.data.sources=[];
  const saved=await service.communityDetail(pc.appId);
  assert.match(saved.cover,/gog-statics.com/);assert.deepEqual(saved.platforms,['windows']);assert.equal(saved.steamAppId,undefined);
+});
+
+test('1.0.1 replaces cached console covers once without changing game identities or other metadata',()=>{
+ const source={enabled:true,id:'test',packages:[{title:'Bloodborne'},{title:'God of War III Remastered'},{title:'God of War'}]} as PackageSource;
+ const rows=communityCatalog([source]);const catalog=Object.fromEntries(rows.map(m=>[m.appId,{...m,cover:'./old.png',portrait:'./old-portrait.png',banner:'./old.png',description:'Keep my description',updated:'2026-01-01'}]));
+ assert.equal(refreshOfficialArtwork(catalog),2);
+ for(const [title,file] of [['Bloodborne','./bloodborne.jpg'],['God of War III Remastered','./god-of-war-iii.jpg']]){
+  const original=rows.find(m=>m.title===title)!;const m=catalog[original.appId];
+  assert.equal(m.cover,file);assert.equal(m.portrait,file);assert.equal(m.banner,file);
+  assert.equal(m.appId,original.appId);assert.equal(m.description,'Keep my description');assert.deepEqual(m.platforms,[]);
+ }
+ const other=rows.find(m=>m.title==='God of War')!;assert.equal(catalog[other.appId].cover,'./old.png');
+ assert.equal(refreshOfficialArtwork(catalog),0);
 });

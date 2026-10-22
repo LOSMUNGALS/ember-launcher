@@ -57,8 +57,9 @@ export function homeSelection(
   const newGame = !discovery.length && candidates.length
     ? candidates[rotation % candidates.length]
     : undefined;
-  const discoveryMeta = newGame?.steamId
-    ? catalog[newGame.steamId]
+  const newGameCatalogId=newGame?.catalogId||newGame?.steamId;
+  const discoveryMeta = newGameCatalogId
+    ? catalog[newGameCatalogId]
     : !newGame && discovery.length
       ? discovery[rotation % discovery.length]
       : undefined;
@@ -67,8 +68,8 @@ export function homeSelection(
   const heroGame = discover ? newGame : recentPick;
   const heroMeta = discover
     ? discoveryMeta
-    : heroGame?.steamId
-      ? catalog[heroGame.steamId]
+    : heroGame?.catalogId||heroGame?.steamId
+      ? catalog[(heroGame.catalogId||heroGame.steamId)!]
       : undefined;
   return { recommendations, recent, recentPick, heroGame, heroMeta, discover };
 }

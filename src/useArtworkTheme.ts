@@ -12,7 +12,7 @@ export function useArtworkTheme(sources:(string|undefined)[],fallback='#273b40')
     const cached=colors.get(src);if(cached){if(!canceled)setResult({key,color:cached});return;}
     try{
      const img=new Image();images.push(img);img.crossOrigin='anonymous';
-     const imageUrl=/^\.\/(bloodborne\.png|god-of-war-iii\.png|13-sentinels\.jpg)$/.test(src)?'ember-art://bundled/'+src.slice(2):src;
+     const imageUrl=/^\.\/(bloodborne\.(?:png|jpg)|god-of-war-iii\.(?:png|jpg)|13-sentinels\.jpg)$/.test(src)?'ember-art://bundled/'+src.slice(2):src;
      await new Promise<void>((resolve,reject)=>{
       const timer=setTimeout(()=>{img.removeAttribute('src');reject(Error('Artwork timed out'));},8000);
       img.onload=()=>{clearTimeout(timer);resolve();};img.onerror=()=>{clearTimeout(timer);reject(Error('Artwork unavailable'));};img.src=imageUrl;

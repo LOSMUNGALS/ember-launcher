@@ -23,17 +23,22 @@ jobs:
       - run: npm run test:accounts
       - run: npm run package:mac -- --publish never
       - run: npm run smoke
+      - name: Read version
+        id: version
+        run: node -e "require('fs').appendFileSync(process.env.GITHUB_OUTPUT, 'version='+require('./package.json').version+'\n')"
       - name: Check exported app
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          test -f release/Ember-1.0.0-arm64-mac.zip
-          unzip -t release/Ember-1.0.0-arm64-mac.zip
+          test -f "release/Ember-${VERSION}-arm64-mac.zip"
+          unzip -t "release/Ember-${VERSION}-arm64-mac.zip"
           file release/mac-arm64/Ember.app/Contents/MacOS/Ember
-          shasum -a 256 release/Ember-1.0.0-arm64-mac.zip > release/SHA256-mac.txt
+          shasum -a 256 "release/Ember-${VERSION}-arm64-mac.zip" > release/SHA256-mac.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: Ember-1.0.0-Mac-Apple-Silicon
+          name: Ember-${{ steps.version.outputs.version }}-Mac-Apple-Silicon
           path: |
-            release/Ember-1.0.0-arm64-mac.zip
+            release/Ember-*-arm64-mac.zip
             release/SHA256-mac.txt
           if-no-files-found: error
           retention-days: 30

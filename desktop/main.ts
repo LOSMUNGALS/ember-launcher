@@ -5,6 +5,7 @@ import {AnnouncementRead} from './announcement-read';
 import {downloadedInstallDirectory,uninstallDownloaded} from './download-uninstall';
 import {detectedExecutables,installationRecords,executableStamp} from './detect-install';
 import {communityKey,communityTitle} from '../src/community-title';
+import {refreshOfficialArtwork} from './community-catalog';
 import { packageMatches } from "../src/package-matching";
 import { torrentDirectory } from "./torrents";
 import {
@@ -72,6 +73,7 @@ else
         state = new StateStore(path.join(root, "ember2.json"));
       await library.load();
       await state.load();
+      if(refreshOfficialArtwork(state.data.catalog))await state.save();
       const accounts = new AccountClient(root);
       await accounts.load();
       const announcementRead=new AnnouncementRead(path.join(root,'announcement-read.json'));
@@ -139,7 +141,7 @@ else
       state.data.visits++;
       await state.save();
       protocol.handle("ember-art", async (request) => {
-        const bundled=/^ember-art:\/\/bundled\/(bloodborne\.png|god-of-war-iii\.png|13-sentinels\.jpg)$/.exec(request.url);
+        const bundled=/^ember-art:\/\/bundled\/(bloodborne\.(?:png|jpg)|god-of-war-iii\.(?:png|jpg)|13-sentinels\.jpg)$/.exec(request.url);
         const file = bundled?path.join(__dirname,'ui',bundled[1]):artworkFile(request.url, art);
         if (!file || request.method !== "GET")
           return new Response("Not found", { status: 404 });

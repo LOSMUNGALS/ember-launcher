@@ -40,6 +40,13 @@ const catalog = Object.fromEntries(
   ["1", "2", "3", "4", "5"].map((id) => [id, meta(id)]),
 );
 const prefs = initialState().preferences;
+
+test('recent saved community games retain their catalog artwork in the Home feature',()=>{
+ const m={...meta('feed-fixture'),cover:'./bloodborne.jpg',portrait:'./bloodborne.jpg'};
+ const g=game('fixture',{steamId:undefined,catalogId:m.appId,store:'local',seconds:30,lastPlayed:'2026-10-22T10:00:00Z'});
+ const selected=homeSelection([g],{[m.appId]:m},prefs,1);
+ assert.equal(selected.heroGame?.id,g.id);assert.equal(selected.heroMeta?.portrait,m.portrait);
+});
 test("Home alternates Ember activity and unplayed dashboard games", () => {
   const games = [
     game("1", { steam: { lastPlayed: 100, playtimeMinutes: 10 } }),

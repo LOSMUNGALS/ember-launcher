@@ -183,7 +183,7 @@ export class CatalogService {
     const entry=this.community().find(g=>g.appId===id)||old;if(!entry)throw Error('Catalog game not found.');
     if(old&&old.origin!=='community'&&old.artworkVersion===1&&Date.now()-Date.parse(old.updated)<86400000)return old;
     const official=officialPages[communityKey(entry.title)];
-    if(official){const result={...entry,title:official.title,purchaseUrl:official.url,cover:official.cover||entry.cover,banner:official.cover||entry.banner,platforms:official.platforms||[]};this.store.data.catalog[id]=result;return result;}
+    if(official){const result={...entry,title:official.title,purchaseUrl:official.url,cover:official.cover||entry.cover,portrait:official.cover||entry.portrait,banner:official.cover||entry.banner,platforms:official.platforms||[]};this.store.data.catalog[id]=result;return result;}
     if(entry.purchaseUrl){this.store.data.catalog[id]=entry;return entry;}
     try{
       const result=await this.readJson('https://store.steampowered.com/api/storesearch/?term='+encodeURIComponent(lookupTitle(entry.title))+'&l=english&cc='+this.store.data.preferences.region);

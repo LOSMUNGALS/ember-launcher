@@ -306,6 +306,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     m: CatalogGame | undefined,
     rank?: number,
   ) {
+    m=(g?.catalogId&&state.catalog[g.catalogId])||m;
     const id = g?.id || "steam-" + m!.appId;
     return (
       <article className="v2-card" key={id}>
