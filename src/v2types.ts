@@ -131,6 +131,7 @@ export interface V2State {
   visits: number;
 }
 export interface V2Snapshot {
+  launcherUpdate?:import('./launcher-update-types').LauncherUpdateState;
   sourcesRevision?: string;
   state: V2State;
   games: Game[];
@@ -141,6 +142,7 @@ export interface V2Snapshot {
   message: string;
 }
 export type V2Action =
+  | "launcherUpdateStatus" | "checkLauncherUpdate" | "installLauncherUpdate" | "announcementStatus" | "readAnnouncements"
   | "accountStatus" | "accountLogin" | "accountRegister" | "accountForgotPassword" | "accountLogout" | "accountConfigure" | "updates" | "publishUpdate"
   | "snapshot"
   | "importSteam"

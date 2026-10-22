@@ -40,6 +40,7 @@ export class Accounts {
    CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,email TEXT UNIQUE COLLATE NOCASE,username TEXT UNIQUE COLLATE NOCASE,password TEXT NOT NULL,status TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'user',retryAt INTEGER NOT NULL DEFAULT 0,created INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,userId INTEGER REFERENCES users(id),expires INTEGER);
    CREATE TABLE IF NOT EXISTS password_resets(token TEXT PRIMARY KEY,userId INTEGER REFERENCES users(id),expires INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS launcher_releases(id INTEGER PRIMARY KEY,version TEXT UNIQUE NOT NULL,title TEXT NOT NULL,body TEXT NOT NULL,published INTEGER NOT NULL DEFAULT 0,updated INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS posts(id INTEGER PRIMARY KEY,body TEXT NOT NULL,media TEXT NOT NULL,created INTEGER NOT NULL,author INTEGER REFERENCES users(id));
    CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,actor INTEGER,action TEXT,target INTEGER,created INTEGER);`);
  }
@@ -134,6 +135,25 @@ export class Accounts {
   }catch(e){this.db.exec('ROLLBACK');throw e;}
   return {ok:true};
  }
+ releases(token){this.authorize(token,true);return this.db.prepare('SELECT * FROM launcher_releases ORDER BY updated DESC,id DESC LIMIT 100').all().map(r=>({...r,published:!!r.published}));}
+ release(token,version){this.authorize(token);const row=this.db.prepare('SELECT version,title,body,updated FROM launcher_releases WHERE version=? AND published=1').get(String(version||''));return row||null;}
+ saveRelease(token,p){
+  const actor=this.authorize(token,true);
+  const version=typeof p.version==='string'?p.version.trim():'',title=typeof p.title==='string'?p.title.trim():'',body=typeof p.body==='string'?p.body.trim():'';
+  const match=version.match(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$/);
+  if(version.length>100||!match||match.slice(1,4).some(n=>!Number.isSafeInteger(Number(n)))||match[4]?.split('.').some(n=>!n||(/^\d+$/.test(n)&&n.length>1&&n.startsWith('0')))||match[5]?.split('.').some(n=>!n))fail(400,'Use a version such as 2.0.1. It must match the installer version.');
+  if(!title||title.length>200||!body||body.length>20000||typeof p.published!=='boolean')fail(400,'Add a title (1–200 characters), description (1–20,000 characters), and publication status.');
+  const id=p.id===undefined?undefined:Number(p.id);if(id!==undefined&&(!Number.isSafeInteger(id)||id<=0))fail(400,'Invalid release ID.');
+  if(id!==undefined&&!this.db.prepare('SELECT id FROM launcher_releases WHERE id=?').get(id))fail(404,'Release not found.');
+  const conflict=this.db.prepare('SELECT id FROM launcher_releases WHERE version=?').get(version);if(conflict&&conflict.id!==id)fail(409,'This version already has release notes. Edit that release instead.');
+  this.db.exec('BEGIN IMMEDIATE');try{
+   const saved=id??Number(this.db.prepare('INSERT INTO launcher_releases(version,title,body,published,updated) VALUES(?,?,?,?,?)').run(version,title,body,Number(p.published),this.now()).lastInsertRowid);
+   if(id!==undefined)this.db.prepare('UPDATE launcher_releases SET version=?,title=?,body=?,published=?,updated=? WHERE id=?').run(version,title,body,Number(p.published),this.now(),id);
+   this.db.prepare('INSERT INTO audit(actor,action,target,created) VALUES(?,?,?,?)').run(actor.id,p.published?'launcher-release-publish':'launcher-release-save',saved,this.now());
+   this.db.exec('COMMIT');return {id:saved,version,title,body,published:p.published};
+  }catch(e){this.db.exec('ROLLBACK');throw e;}
+ }
+ latestPost(token){this.authorize(token);return {latest:this.db.prepare('SELECT COALESCE(MAX(id),0) id FROM posts').get().id};}
  posts(token,before=Number.MAX_SAFE_INTEGER){this.authorize(token);return this.db.prepare('SELECT p.id,p.body,p.media,p.created,u.username author FROM posts p JOIN users u ON u.id=p.author WHERE p.id<? ORDER BY p.id DESC LIMIT 50').all(Number(before)||Number.MAX_SAFE_INTEGER).map(p=>({...p,media:JSON.parse(p.media)}));}
  publish(token,p){const u=this.authorize(token,true),body=String(p.body||'').trim();if(!body||body.length>20000)fail(400,'Write an update between 1 and 20,000 characters.');const media=validMedia(p.media||[]);this.db.prepare('INSERT INTO posts(body,media,created,author) VALUES(?,?,?,?)').run(body,JSON.stringify(media),this.now(),u.id);return {ok:true};}
  close(){this.db.close();}

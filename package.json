@@ -11,6 +11,7 @@
     "smoke": "node scripts/smoke.mjs",
     "package": "npm run build && electron-builder --dir",
     "package:win": "npm run build && electron-builder --win portable",
+    "package:installer": "npm run build && electron-builder --win nsis --publish never",
     "package:mac": "npm run build && electron-builder --mac zip --arm64",
     "accounts": "node --env-file-if-exists=.env server/index.mjs",
     "test:accounts": "node --test server/service.test.mjs",
@@ -21,6 +22,7 @@
   "license": "UNLICENSED",
   "type": "commonjs",
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "fs-chunk-store": "^5.0.1",
     "hls.js": "^1.7.3",
     "react": "^19.3.1",
@@ -62,6 +64,7 @@
     ],
     "win": {
       "target": [
+        "nsis",
         "portable"
       ],
       "icon": "build/icon.ico"
@@ -73,6 +76,21 @@
       "category": "public.app-category.games",
       "icon": "public/launcher-source.png"
     },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "artifactName": "Ember-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "LOSMUNGALS",
+        "repo": "ember-launcher",
+        "releaseType": "release"
+      }
+    ],
     "npmRebuild": false
   }
 }

@@ -1,6 +1,7 @@
 import { Trailer } from './Trailer';
 import {AccountGate, type AccountUser} from './AccountGate';
 import {Updates} from './Updates';
+import {LauncherUpdateDialog} from './LauncherUpdateDialog';
 import { SourcePicker, SourceSettings } from "./DownloadSources";
 import { InfiniteLoader } from './InfiniteLoader';
 import { catalogCandidates } from './catalog-view';
@@ -57,6 +58,20 @@ const playLabel = (g: Game) =>
     : hours(playedSeconds(g));
 function App({user,logout}:{user:AccountUser;logout:()=>void}) {
   const catalogRequest=useRef(0);
+  const [updateDialog,setUpdateDialog]=useState(false),[unreadUpdates,setUnreadUpdates]=useState(false),[updatesVisit,setUpdatesVisit]=useState(0);
+  const announcementsRequest=useRef(0);
+  const readAnnouncements=useCallback(async(through:number)=>{
+    const request=++announcementsRequest.current;
+    const status=await window.ember2.call('readAnnouncements',{through});
+    if(request===announcementsRequest.current)setUnreadUpdates(status.unread);
+  },[]);
+  useEffect(()=>{
+    let active=true;
+    const check=async()=>{const request=++announcementsRequest.current;try{const status=await window.ember2.call('announcementStatus');if(active&&request===announcementsRequest.current)setUnreadUpdates(status.unread);}catch{/* Account gate handles service outages. */}};
+    void check();const timer=setInterval(()=>void check(),30000);
+    const focus=()=>void check();window.addEventListener('focus',focus);
+    return()=>{active=false;announcementsRequest.current++;clearInterval(timer);window.removeEventListener('focus',focus);};
+  },[]);
   const [snap, setSnap] = useState<V2Snapshot>(),
     [page, setPage] = useState("Home"),
     [collapsed, setCollapsed] = useState(false),
@@ -115,6 +130,13 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     },
     [refresh],
   );
+  useEffect(()=>{
+    let active=true;
+    const updateStatus=async()=>{try{const launcherUpdate=await window.ember2.call('launcherUpdateStatus');if(active)setSnap(current=>current?{...current,launcherUpdate}:current);}catch{/* Retry at the next poll or focus. */}};
+    void updateStatus();const timer=setInterval(()=>void updateStatus(),60000);
+    const focus=()=>void updateStatus();window.addEventListener('focus',focus);
+    return()=>{active=false;clearInterval(timer);window.removeEventListener('focus',focus);};
+  },[]);
   useEffect(() => {
     void refresh().catch((e) => setError(String(e)));
     const off = window.ember2.subscribe(
@@ -183,6 +205,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     };
   }, [page, query]);
   const navigate = (next: string) => {
+    if(next==='Updates')setUpdatesVisit(n=>n+1);
     setPage(next);
     setDetail(undefined);
     setSearch("");
@@ -555,7 +578,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
           </nav>
         ))}
         <div className="sidebar-bottom">
-          <button className={page==='Updates'?'selected':''} title="Updates" aria-label="Updates" onClick={()=>navigate('Updates')}>✦ {!collapsed&&'Updates'}</button>
+          <button className={page==='Updates'?'selected':''} title="Updates" aria-label="Updates" onClick={()=>navigate('Updates')}>✦ {!collapsed&&'Updates'}{unreadUpdates&&<span className="updates-unread" role="status" aria-label="Unread announcements"/>}</button>
           {!collapsed&&<small>{user.username}{user.role==='admin'?' · Admin':''}</small>}
           <button title="Log out" aria-label="Log out" onClick={logout}>↪ {!collapsed&&'Log out'}</button>
           {!collapsed && (
@@ -578,6 +601,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
               <span>{page}</span>
             )}
           </div>
+          {snap.launcherUpdate?.release&&<button className="launcher-update-available" onClick={()=>setUpdateDialog(true)}>Update available</button>}
           <input
             aria-label="Search games"
             hidden={["Settings", "Downloads"].includes(page) && !detail}
@@ -593,6 +617,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
           />
           <button onClick={() => void call("addGame")}>＋ Add game</button>
         </header>
+        {updateDialog&&snap.launcherUpdate?.release&&<LauncherUpdateDialog state={snap.launcherUpdate} onClose={()=>setUpdateDialog(false)}/>}
         {error && (
           <div className="alert" role="alert">
             {error}
@@ -715,7 +740,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
               {selectedMeta?.trailers?.length ? <section><h2>Trailer</h2><Trailer poster={selectedMeta.banner} src={selectedMeta.trailers[0]} /></section>:null}
               {game?.store === "steam" && <SteamDetails game={game} />}
             </>
-          ) : page === "Updates" ? <Updates admin={user.role==='admin'}/> : page === "Home" ? (
+          ) : page === "Updates" ? <Updates admin={user.role==='admin'} onRead={readAnnouncements} refreshSignal={updatesVisit}/> : page === "Home" ? (
             <>
               <section
                 className="v2-hero"
@@ -1441,6 +1466,7 @@ function Settings({
         <button className="primary">Save preferences</button>
       </form>
       <SourceSettings sources={snap.state.sources} call={call}/>
+      {snap.launcherUpdate&&<section className="settings-panel"><h2>Launcher updates</h2><p>Installed version: {snap.launcherUpdate.currentVersion}</p><p>{snap.launcherUpdate.supported?'Ember checks for published releases at startup and every 15 minutes.':snap.launcherUpdate.reason}</p>{snap.launcherUpdate.error&&<p role="alert">{snap.launcherUpdate.error}</p>}<button disabled={!snap.launcherUpdate.supported||['checking','downloading','downloaded','installing'].includes(snap.launcherUpdate.phase)} onClick={()=>void call('checkLauncherUpdate')}>{snap.launcherUpdate.phase==='checking'?'Checking…':'Check for launcher updates'}</button></section>}
       <section className="settings-panel">
         <h2>Platform & storage</h2>
         <p>

@@ -82,6 +82,8 @@ The account browser smoke test currently uses Microsoft Edge, which must be inst
 
 ## Tests and builds
 
+Launcher self-updates and the administrator release editor: see [release publishing and update verification](docs/LAUNCHER-UPDATES.md). `npm run package:installer` builds an unpublished Windows installer candidate with automatic-update support. Portable/source builds remain available for development. The Updates tab has a persistent unread indicator for new announcements.
+
 ```sh
 npm test
 npm run smoke

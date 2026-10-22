@@ -7,7 +7,7 @@ await build({
   platform: "node",
   format: "cjs",
   outfile: "dist/main.cjs",
-  external: ["electron", "webtorrent", "fs-chunk-store"],
+  external: ["electron", "electron-updater", "webtorrent", "fs-chunk-store"],
   target: "node22",
   sourcemap: true,
   define: { __EMBER_ACCOUNT_URL__: JSON.stringify(process.env.EMBER_ACCOUNT_URL || 'http://127.0.0.1:4783') },

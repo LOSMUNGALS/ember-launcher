@@ -1,5 +1,6 @@
 const { contextBridge, ipcRenderer } = require("electron");
 const actions = new Set([
+  "launcherUpdateStatus", "checkLauncherUpdate", "installLauncherUpdate", "announcementStatus", "readAnnouncements",
   "accountForgotPassword",
   "accountStatus", "accountLogin", "accountRegister", "accountLogout", "accountConfigure", "updates", "publishUpdate",
   "snapshot",

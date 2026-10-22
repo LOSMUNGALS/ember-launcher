@@ -369,3 +369,21 @@ test("concurrency and queue priority affect actual request ordering", async () =
     await f.close();
   }
 });
+
+test('launcher update pauses active and queued packages before flushing; partial transfers resume after restart',async()=>{
+ const f=await fixture();
+ try{
+  f.store.data.preferences.concurrency=1;
+  const first=await f.manager.enqueue(validateFeed(feed()).packages[0],'source',f.root);
+  await f.manager.enqueue(validateFeed(feed(pkg({id:'queued-update-fixture'}))).packages[0],'source',f.root);
+  await waitFor(()=>f.store.data.downloads[0].downloaded>100000);
+  await f.manager.pauseForUpdate();
+  assert.ok(f.store.data.downloads.every(j=>j.status==='paused'));assert.equal(f.requests(),1);
+  const at=f.store.data.downloads[0].downloaded;assert.ok(at>0&&at<payload.length);
+  const state=new StateStore(f.store.file);await state.load();assert.ok(state.data.downloads.every(j=>j.status==='paused'));
+  await f.manager.shutdown();
+  const restarted=new DownloadManager(f.manager.root,state,()=>{},f.client);await restarted.initialize();
+  try{await restarted.control(first,'resume');await waitFor(()=>state.data.downloads[0].status==='completed');assert.equal(f.resumed(),true);assert.equal(state.data.downloads[1].status,'paused');assert.equal(hash(await readFile(restarted.file(state.data.downloads[0]))),hash(payload));}
+  finally{await restarted.shutdown();}
+ }finally{await f.close();}
+});

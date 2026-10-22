@@ -75,6 +75,11 @@ export class HostDownloads {
   else throw Error('This host transfer cannot perform that action.');
   await this.store.save();this.changed();
  }
+ async pauseForUpdate(){
+  for(const [id,item] of this.items){item.pause();const job=this.store.data.downloads.find(j=>j.id===id);if(job){job.status='paused';job.speed=0;job.eta=undefined;}}
+  await this.store.save();this.changed();
+ }
+ recoverAfterUpdate(){this.closing=false;}
  async shutdown(){
   if(this.closing)return;
   this.closing=true;

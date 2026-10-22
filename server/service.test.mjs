@@ -107,3 +107,23 @@ test('media rejects unsafe protocols and unrelated GIPHY hosts',()=>{
  for(const url of ['javascript:alert(1)','http://example.com/a.png','https://user:pass@example.com/image'])assert.throws(()=>validMedia([{type:'image',url}]));
  assert.throws(()=>validMedia([{type:'giphy',url:'https://evil.example/gif'}]));
 });
+
+test('announcement latest ID requires access and advances for new posts',async()=>{
+ const a=new Accounts(':memory:','owner@example.com');
+ try{await a.bootstrap(password);assert.throws(()=>a.latestPost(''),/expired/);const {token}=await a.login({identifier:'owner@example.com',password});assert.equal(a.latestPost(token).latest,0);a.publish(token,{body:'First'});assert.equal(a.latestPost(token).latest,1);a.publish(token,{body:'Second'});assert.equal(a.latestPost(token).latest,2);a.logout(token);assert.throws(()=>a.latestPost(token),/expired/);}finally{a.close();}
+});
+
+test('only administrators edit release titles, versions and formatted bodies; drafts stay private',async()=>{
+ const a=new Accounts(':memory:','owner@example.com');
+ try{
+  await a.bootstrap(password);const admin=(await a.login({identifier:'owner@example.com',password})).token;
+  await a.register({username:'player',email:'player@example.com',password});const id=a.requests(admin).find(u=>u.username==='player').id;a.decide(admin,id,'approved');const user=(await a.login({identifier:'player',password})).token;
+  const draft={version:'2.0.1',title:'New games',body:'# Features\n**Bold** and *italic*\n- Fixed downloads',published:false};
+  assert.throws(()=>a.saveRelease(user,draft),/Administrator/);assert.throws(()=>a.releases(user),/Administrator/);
+  const saved=a.saveRelease(admin,draft);assert.equal(a.release(user,'2.0.1'),null);assert.equal(a.releases(admin)[0].published,false);
+  a.saveRelease(admin,{...draft,id:saved.id,version:'2.0.2',title:'Edited title',published:true});assert.equal(a.release(user,'2.0.1'),null);assert.equal(a.release(user,'2.0.2').title,'Edited title');assert.equal(a.release(user,'2.0.2').body,draft.body);
+  assert.throws(()=>a.saveRelease(admin,{...draft,version:'2.0.2'}),/already/);
+  for(const version of ['2.01.0','2.0','2.0.1-alpha..1','2.0.1-01','latest','2.0.1+'])assert.throws(()=>a.saveRelease(admin,{...draft,version}),/version/);
+  a.saveRelease(admin,{...draft,id:saved.id,version:'2.0.2',published:false});assert.equal(a.release(user,'2.0.2'),null);
+ }finally{a.close();}
+});

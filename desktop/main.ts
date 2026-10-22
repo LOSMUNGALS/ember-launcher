@@ -1,5 +1,7 @@
 import { HostDownloads } from "./host-downloads";
 import {AccountClient} from './accounts';
+import {LauncherUpdates} from './launcher-updates';
+import {AnnouncementRead} from './announcement-read';
 import {downloadedInstallDirectory,uninstallDownloaded} from './download-uninstall';
 import {detectedExecutables,installationRecords,executableStamp} from './detect-install';
 import {communityKey,communityTitle} from '../src/community-title';
@@ -72,6 +74,8 @@ else
       await state.load();
       const accounts = new AccountClient(root);
       await accounts.load();
+      const announcementRead=new AnnouncementRead(path.join(root,'announcement-read.json'));
+      await announcementRead.load();
       if ((state.data.defaultSourcesVersion || 0) < 3 && !process.env.EMBER_DATA_DIR) {
         const supplied = await bundledSources(path.join(__dirname,'catalogs'));
         const keys = new Set(supplied.map(s=>sourceKey(s.url)));
@@ -94,6 +98,7 @@ else
       const catalog = new CatalogService(state);
       if(!process.env.EMBER_DATA_DIR)await catalog.refreshRankings();
       let busy = false,
+        updating = false,
         message = "",
         scanning = false,
         installing = false;
@@ -108,6 +113,24 @@ else
       );
       await downloads.initialize();
       hostDownloads = new HostDownloads(state, changed);
+      const updaterSupported=app.isPackaged&&process.platform==='win32'&&!process.env.PORTABLE_EXECUTABLE_FILE;
+      const updateDriver=updaterSupported?(await import('electron-updater')).autoUpdater:undefined;
+      const launcherUpdates=new LauncherUpdates(updateDriver,app.getVersion(),changed,{
+        prepare:async()=>{
+          if(running.size||installing)throw Error('Close running games and finish game installation before updating Ember.');
+          updating=true;
+          await downloads.pauseForUpdate();await hostDownloads.pauseForUpdate();await state.save();
+        },
+        finish:async()=>{
+          await hostDownloads.shutdown();await library.mutate(()=>{});await state.save();
+          quitting=true;
+        },
+        recover:()=>{updating=false;quitting=false;hostDownloads.recoverAfterUpdate();},
+      },updaterSupported?undefined:'Automatic updates require the installed Windows version of Ember. Source and portable builds are updated manually.');
+      const describeRelease=async()=>{
+        const release=launcherUpdates.status().release;if(!release||!accounts.user)return;
+        try{const result=await accounts.request('launcher-release?version='+encodeURIComponent(release.version));launcherUpdates.describe(result.release,release.version);}catch{/* GitHub notes remain available when the account service is offline. */}
+      };
       state.data.visits++;
       await state.save();
       protocol.handle("ember-art", async (request) => {
@@ -428,6 +451,7 @@ else
       }
       async function launch(id: string) {
         await accounts.require(true);
+        if(updating)throw Error('Wait for the launcher update to finish.');
         const g = find(id);
         if (!g.installed) throw Error("Install this game first.");
         if (running.has(id)) throw Error("This game is already running.");
@@ -631,6 +655,16 @@ else
         if(type==='accountLogout') return accounts.logout();
         if(type==='accountConfigure') return accounts.configure(String(p.url));
         await accounts.require();
+        if(type==='launcherUpdateStatus'){await describeRelease();return launcherUpdates.status();}
+        if(type==='checkLauncherUpdate'){await launcherUpdates.check();await describeRelease();return launcherUpdates.status();}
+        if(type==='installLauncherUpdate')return launcherUpdates.install();
+        if(type==='announcementStatus'||type==='readAnnouncements'){
+          const key=JSON.stringify([accounts.url,accounts.user!.id]);
+          const {latest}=await accounts.request('updates/latest');
+          if(type==='readAnnouncements')await announcementRead.mark(key,Math.min(Number(p.through),latest));
+          return announcementRead.status(key,latest);
+        }
+        if(updating&&type!=='snapshot')throw Error('Ember is preparing a launcher update. Please wait.');
         if(type==='updates')return accounts.updates(p.before);
         if(type==='publishUpdate')return accounts.publish(p);
         switch (type) {
@@ -645,6 +679,7 @@ else
               dataPath: root,
               busy,
               message,
+              launcherUpdate:launcherUpdates.status(),
             };
           }
           case "detectInstall":
@@ -1067,7 +1102,7 @@ else
         try {
           return await action(type, p);
         } finally {
-          if (type !== "snapshot" && type !== "accountStatus" && type !== "updates") changed();
+          if (!['snapshot','accountStatus','updates','announcementStatus','launcherUpdateStatus','checkLauncherUpdate'].includes(type)) changed();
         }
       });
       function createWindow() {
@@ -1102,6 +1137,7 @@ else
         });
       }
       createWindow();
+      if(updaterSupported){void launcherUpdates.check();const updatePoll=setInterval(()=>void launcherUpdates.check(),15*60000);updatePoll.unref();}
       if(!process.env.EMBER_DATA_DIR || process.env.EMBER_ENABLE_TRAY==='1'){
         tray=new Tray(nativeImage.createFromPath(path.join(__dirname,'ui/launcher.png')).resize({width:32,height:32}));
         const show=()=>{if(win.isDestroyed())createWindow();win.show();win.focus();};

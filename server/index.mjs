@@ -20,10 +20,10 @@ export async function startService({directory=path.resolve('.account-service'),p
    if(req.headers.origin&&req.headers.origin!==new URL(origin).origin)throw new ApiError(403,'Cross-origin requests are not allowed.');
    const url=new URL(req.url,origin),route=url.pathname,token=(req.headers.authorization||'').replace(/^Bearer /,'');
    if(req.method==='GET'&&!route.startsWith('/api/')){
-    const assets={'/':'index.html','/admin.js':'admin.js','/style.css':'style.css','/logo.png':'../../public/launcher.png'};
+    const assets={'/':'index.html','/admin.js':'admin.js','/formatting.mjs':'formatting.mjs','/style.css':'style.css','/logo.png':'../../public/launcher.png'};
     if(!assets[route])throw new ApiError(404,'Not found.');
     res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https:; media-src https:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
-    res.setHeader('Content-Type',route.endsWith('.js')?'text/javascript':route.endsWith('.css')?'text/css':route.endsWith('.png')?'image/png':'text/html');
+    res.setHeader('Content-Type',/\.m?js$/.test(route)?'text/javascript':route.endsWith('.css')?'text/css':route.endsWith('.png')?'image/png':'text/html');
     res.end(await readFile(path.resolve(here,'public',assets[route])));return;
    }
    let body={};
@@ -54,7 +54,11 @@ export async function startService({directory=path.resolve('.account-service'),p
    else if(req.method==='GET'&&route==='/api/accounts')result={users:accounts.requests(token)};
    else if(req.method==='POST'&&route==='/api/decision')result=accounts.decide(token,body.id,body.status);
    else if(req.method==='GET'&&route==='/api/updates')result={posts:accounts.posts(token,url.searchParams.get('before')||undefined)};
+   else if(req.method==='GET'&&route==='/api/updates/latest')result=accounts.latestPost(token);
    else if(req.method==='POST'&&route==='/api/updates')result=accounts.publish(token,body);
+   else if(req.method==='GET'&&route==='/api/launcher-releases')result={releases:accounts.releases(token)};
+   else if(req.method==='POST'&&route==='/api/launcher-releases')result=accounts.saveRelease(token,body);
+   else if(req.method==='GET'&&route==='/api/launcher-release')result={release:accounts.release(token,url.searchParams.get('version'))};
    else throw new ApiError(404,'Not found.');
    json(res,200,result);
   }catch(e){json(res,e instanceof ApiError?e.status:500,{error:e instanceof ApiError?e.message:'The service could not complete this request.'});}

@@ -18,6 +18,7 @@ export class DownloadManager {
   >();
   private retrying = new Set<string>();
   private closed = false;
+  private suspended = false;
   constructor(
     readonly root: string,
     private store: StateStore,
@@ -81,7 +82,7 @@ export class DownloadManager {
     return job.id;
   }
   pump() {
-    if (this.closed) return;
+    if (this.closed || this.suspended) return;
     for (const j of [...this.store.data.downloads].sort(
       (a, b) => b.priority - a.priority || a.created.localeCompare(b.created),
     )) {
@@ -306,6 +307,15 @@ export class DownloadManager {
       (await hashFile(this.file(job))) !== job.package.sha256
     )
       throw Error("Package integrity verification failed. Download again.");
+  }
+  async pauseForUpdate() {
+    this.suspended=true;
+    try{
+      for(const job of this.store.data.downloads)if(job.package.transport!=='host'&&['queued','connecting','downloading','verifying'].includes(job.status))job.status='paused';
+      const tasks=[...this.active.values()];for(const task of tasks)task.abort.abort();
+      await Promise.all(tasks.map(task=>task.promise));
+      await this.store.save();this.changed();
+    }finally{this.suspended=false;}
   }
   async shutdown() {
     this.closed = true;
