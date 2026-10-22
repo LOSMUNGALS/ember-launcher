@@ -1,0 +1,18 @@
+{
+  "name": "ember-account-service",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node index.mjs",
+    "test": "node --test --test-concurrency=1 service.test.mjs remote.test.mjs migration.test.mjs remote-http.test.mjs"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

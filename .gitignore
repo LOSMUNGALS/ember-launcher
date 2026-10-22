@@ -1,4 +1,6 @@
 node_modules/
+**/node_modules/
+*accounts-export*.json
 dist/
 release/
 .test-data/

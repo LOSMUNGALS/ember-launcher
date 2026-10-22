@@ -5,7 +5,7 @@ services:
     branch: codex/initial-import
     dockerfilePath: ./server/Dockerfile
     dockerContext: .
-    plan: starter
+    plan: free
     numInstances: 1
     autoDeployTrigger: off
     envVars:
@@ -15,7 +15,7 @@ services:
         value: nicolas2mv@gmail.com
       - key: PUBLIC_URL
         sync: false
-    disk:
-      name: ember-accounts-data
-      mountPath: /app/.account-service
-      sizeGB: 1
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

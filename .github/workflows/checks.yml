@@ -14,4 +14,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run test:accounts
+      - run: npm ci --prefix server --ignore-scripts
+      - run: node scripts/generate-async-accounts.mjs
+      - run: git diff --exit-code -- server/async-service.mjs
+      - run: npm --prefix server test
       - run: npm run build

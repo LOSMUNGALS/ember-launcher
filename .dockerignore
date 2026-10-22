@@ -3,3 +3,7 @@
 !server/**
 !public/
 !public/launcher.png
+**/node_modules/
+**/.env
+**/.env.*
+**/*.sqlite*

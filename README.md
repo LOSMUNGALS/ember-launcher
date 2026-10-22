@@ -1,5 +1,7 @@
 # Ember 1.0
 
+For shared accounts on both computers, follow the [free Render + Turso setup](docs/TURSO-SETUP.md). Hosted credentials belong only on the account server. The published 1.0.1 release assets are unchanged.
+
 **Ember 1.0 requires the account service.** Run `npm run accounts`, use the one-time setup link to create the administrator password, then open the launcher. The approval website is local at http://127.0.0.1:4783. Existing administrators display as **LOSMUNGALS**, including on previous posts; existing login credentials still work. See [account setup and hosting](docs/ACCOUNTS.md) and [release/update instructions](docs/LAUNCHER-UPDATES.md). Historical alpha documents record the earlier development milestones.
 
 A real Electron + React + TypeScript desktop launcher for Windows 10/11 and native macOS games. This updates the existing Ember project; it does not use MaPC's proprietary interface or redistribute compatibility engines.

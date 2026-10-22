@@ -1,5 +1,7 @@
 # Shared account hosting
 
+**Current free setup:** see [Render Free + Turso](TURSO-SETUP.md). The Blueprint now uses the free service with remote database credentials and no paid disk. The paid local-disk walkthrough below is historical; use the Turso guide for the current configuration.
+
 The repository includes a Render Blueprint (`render.yaml`) for the existing Docker service with one persistent disk. This is a paid service; review Render's current service and disk charges before deploying. No service has been purchased or deployed by adding this file.
 
 1. Sign in at https://dashboard.render.com and connect GitHub with access to LOSMUNGALS/ember-launcher.
