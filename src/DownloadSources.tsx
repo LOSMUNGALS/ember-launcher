@@ -1,11 +1,12 @@
-import React, {useEffect,useRef,useState} from "react";
+import React, {useEffect,useRef,useState,useMemo} from "react";
 import type {PackageSource, GamePackage} from "./v2types";
-import {packageMatches} from "./package-matching";
+import {downloadOptions} from "./package-matching";
 export function SourcePicker({sources,appId,title,platform,onClose,onChoose,onManage,onRefresh}: {sources:PackageSource[];appId?:string;title:string;platform:string;onClose:()=>void;onChoose:(s:PackageSource,p:GamePackage)=>Promise<void>;onManage:()=>void;onRefresh:()=>Promise<void>}) {
  const dialog=useRef<HTMLDialogElement>(null);
  const [search,setSearch]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
  useEffect(()=>{dialog.current?.showModal()},[]);
- const rows=sources.filter(s=>s.enabled).flatMap(s=>s.packages.filter(p=>packageMatches(p,appId,title)&&p.platforms.includes(platform==='darwin'?'mac':'windows')).map(p=>({s,p}))).filter(({p})=>p.title.toLowerCase().includes(search.toLowerCase()));
+ const options=useMemo(()=>downloadOptions(sources,appId,title,platform),[sources,appId,title,platform]);
+ const rows=options.filter(({p})=>p.title.toLowerCase().includes(search.toLowerCase()));
  const act=async(fn:()=>Promise<void>)=>{setBusy(true);setError('');try{await fn()}catch(e){setError(String(e))}finally{setBusy(false)}};
  return <dialog ref={dialog} className="download-picker" onCancel={onClose} aria-label="Choose Download Source">
   <div className="section-heading"><div><span className="eyebrow">DOWNLOAD</span><h2>{title}</h2></div><button aria-label="Close download sources" onClick={onClose}>✕</button></div>

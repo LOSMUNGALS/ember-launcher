@@ -48,3 +48,9 @@ Validation: 80 launcher tests and nine account tests passed; TypeScript/Vite/Ele
 ## Ember 1.0 naming
 
 Set the application version to 1.0.0 and the sidebar/footer to Ember 1.0, preserving application identity and storage. Administrator display names and all administrator post bylines now read LOSMUNGALS, including old posts, without rewriting post bodies/IDs/dates or account credentials. The existing email and ember-admin login handle remain valid. A persistence regression covers 55 historical posts across pagination and reopening the database. See LAUNCHER-UPDATES.md for the manual transition from the old 2.0 alpha and the normal 1.0.0 → 1.0.1 update workflow.
+
+## Source downloads on official console-origin pages
+
+Bloodborne and God of War III Remastered now show Download when an enabled source offers a matching Windows package, even when their metadata includes an official store link. Source edition matching handles the God of War 3/III spelling while preserving sequel boundaries. These entries do not offer Steam installation or claim verified native compatibility. Source-picker results are memoized. Fixed a shutdown race when a completed transfer was still finishing active-task cleanup.
+
+Validation: 83 launcher tests passed, production build passed, and isolated Electron checks opened both source choices through backend validation to a canceled destination prompt without downloading game files. Existing tray, installation detection, pagination, free-game and genre navigation checks passed. Reproduce with node scripts/verify-community-downloads.mjs after building.

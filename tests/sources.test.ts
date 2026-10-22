@@ -5,7 +5,7 @@ import {mkdtemp,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {parseSourceFeed,safeMagnet,defaultSources,bundledSources,importSourceJson,migrateSources,sourceKey} from '../desktop/sources';
-import {packageMatches} from '../src/package-matching';
+import {packageMatches,downloadOptions} from '../src/package-matching';
 import {runTorrent,torrentDirectory,validateTorrentFiles} from '../desktop/torrents';
 import type {DownloadJob} from '../src/v2types';
 const magnet='magnet:?xt=urn:btih:'+'a'.repeat(40);
@@ -14,6 +14,21 @@ test('release matching accepts patch and hotfix suffixes without matching sequel
  assert.equal(packageMatches(pkg,undefined,'Enshrouded'),true);
  assert.equal(packageMatches({...pkg,title:'Enshrouded 2'},undefined,'Enshrouded'),false);
  assert.equal(packageMatches({...pkg,title:'River God: Enshrouded Current'},undefined,'Enshrouded'),false);
+});
+
+test('console-origin download options match source editions and retain enabled/platform boundaries',()=>{
+ const source={id:'fixture',url:'https://example.com/catalog.json',enabled:true,...parseSourceFeed({name:'Fixture',downloads:[
+  {title:'Bloodborne: GOTY Free Download (Recompiled)',uris:['https://example.com/bloodborne']},
+  {title:'Bloodborne: Game of the Year Edition, v1.09 + All DLCs + Online (Recompiled for PC v1.9.6)',uris:['https://example.com/bloodborne-edition']},
+  {title:'God of War III Remastered Free Download (Recompiled)',uris:['https://example.com/gow']},
+  {title:'God of War 3 Remastered [Repack]',uris:['https://example.com/gow-alias']},
+  {title:'God of War II',uris:['https://example.com/sequel']},
+ ]})};
+ assert.equal(downloadOptions([source],undefined,'Bloodborne','win32').length,2);
+ assert.equal(downloadOptions([source],undefined,'God of War III Remastered','win32').length,2);
+ assert.equal(downloadOptions([{...source,enabled:false}],undefined,'Bloodborne','win32').length,0);
+ assert.equal(downloadOptions([source],undefined,'Bloodborne','darwin').length,0);
+ assert.equal(packageMatches(source.packages[4],undefined,'God of War III Remastered'),false);
 });
 test('community feeds import magnets and hosts without inventing integrity or platform claims',()=>{
  const source=parseSourceFeed({name:'Fixture',downloads:[{title:'Portal 2 v1.2',fileSize:'2 GB',uris:[magnet,'https://example.com/file','javascript:bad']} ]});
@@ -83,7 +98,3 @@ test('unavailable torrent fails with actionable metadata error', {timeout:10000}
  await assert.rejects(runTorrent(job,new AbortController().signal,()=>{},async()=>{}, {clientOptions:{dht:false},metadataTimeoutMs:100}), /Choose another release\/source/);
  assert.equal(job.peers,0);
 });
-
-
-
-

@@ -1,5 +1,9 @@
-import type { GamePackage } from "./v2types";
-export const normalizedTitle = (title: string) => title.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[™®]/g, "").replace(/[^a-z0-9]+/g," ").trim();
+import type { GamePackage,PackageSource } from "./v2types";
+export const normalizedTitle = (title: string) => title.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[™®]/g, "").replace(/[^a-z0-9]+/g," ").trim().replace(/\bgod of war 3 remastered\b/g,'god of war iii remastered');
+export function downloadOptions(sources:PackageSource[],appId:string|undefined,title:string,platform:string){
+ const os=platform==='darwin'?'mac':platform==='win32'?'windows':undefined;
+ return os?sources.filter(s=>s.enabled).flatMap(s=>s.packages.filter(p=>p.platforms.includes(os)&&packageMatches(p,appId,title)).map(p=>({s,p}))):[];
+}
 export function packageMatches(pkg: GamePackage, appId: string | undefined, title: string) {
   if (pkg.steamAppId) return pkg.steamAppId === appId;
   const target = normalizedTitle(title), candidate = normalizedTitle(pkg.title);

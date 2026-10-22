@@ -320,7 +320,11 @@ export class DownloadManager {
   async shutdown() {
     this.closed = true;
     await Promise.all(
-      [...this.active.keys()].map((id) => this.control(id, "pause")),
+      [...this.active.entries()].map(([id, task]) => {
+        const job = this.store.data.downloads.find(j => j.id === id);
+        // Completion can be persisted before the active task's cleanup runs.
+        return job?.status === "completed" ? task.promise : this.control(id, "pause");
+      }),
     );
   }
 }

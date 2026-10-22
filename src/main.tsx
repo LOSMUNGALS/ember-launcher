@@ -5,6 +5,7 @@ import {LauncherUpdateDialog} from './LauncherUpdateDialog';
 import { SourcePicker, SourceSettings } from "./DownloadSources";
 import { InfiniteLoader } from './InfiniteLoader';
 import { catalogCandidates } from './catalog-view';
+import {downloadOptions} from './package-matching';
 import { belongsInLibrary } from "./library-membership";
 import { ScreenshotGallery } from "./ScreenshotGallery";
 import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
@@ -226,6 +227,8 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
   },[snap]);
   const discoveryGames=useMemo(()=>snap?catalogCandidates(results,snap.state.catalog,page==='Coming Soon'?'coming':'all',filteredDiscovery).filter(m=>quality(m,snap.state.preferences)):[],[results,snap,page,filteredDiscovery]);
   const genres=useMemo(()=>[...new Set(Object.values(snap?.state.catalog||{}).flatMap(g=>g.genres))].sort(),[snap]);
+  const detailMeta=meta||(detail?.startsWith('steam-')?snap?.state.catalog[detail.slice(6)]:undefined);
+  const officialSourceDownload=useMemo(()=>Boolean(detailMeta?.purchaseUrl)&&downloadOptions(snap?.state.sources||[],detailMeta?.origin?undefined:detailMeta?.steamAppId||detailMeta?.appId,detailMeta?.title||'',snap?.platform||'').length>0,[snap?.state.sources,snap?.platform,detailMeta?.purchaseUrl,detailMeta?.origin,detailMeta?.steamAppId,detailMeta?.appId,detailMeta?.title]);
   const loadMore=async()=>{
     const request=catalogRequest.current;
     const r=await call('catalog',{kind:page==='Coming Soon'?'coming':'all',term:query,page:pageIndex+1});
@@ -282,13 +285,13 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     const id = g?.steamId || g?.catalogId || m?.steamAppId || m?.appId;
     const job = [...state.downloads].reverse().find(j => j.package.steamAppId === id && j.status !== "canceled");
     return <><div className="actions">
-      {g?.installed ? <button className="primary" disabled={!native(m,g)||snap!.running.includes(g.id)} onClick={()=>void call("launch",{id:g.id})}>{snap!.running.includes(g.id)?"Running":"▶ Play"}</button> : id && !(m?.comingSoon||m?.isFree||m?.price==='Free'||m?.purchaseUrl) ? <button className="primary" onClick={()=>setSources(true)}>Download</button> : null}
+      {g?.installed ? <button className="primary" disabled={!native(m,g)||snap!.running.includes(g.id)} onClick={()=>void call("launch",{id:g.id})}>{snap!.running.includes(g.id)?"Running":"▶ Play"}</button> : id && !(m?.comingSoon||m?.isFree||m?.price==='Free') && (!m?.purchaseUrl||officialSourceDownload) ? <button className="primary" onClick={()=>setSources(true)}>Download</button> : null}
       {g?.installed && (g.managed || state.downloads.some(j=>j.installedGameId===g.id)) && <button disabled={snap!.running.includes(g.id)} onClick={()=>void call('uninstall',{id:g.id})}>Uninstall</button>}
       {id && (!m?.productType||m.productType==='game') && <button onClick={()=>void call("saveGame",{id})}>{g?.saved?"♥ Saved":"♡ Save to library"}</button>}
       {id && (!m?.origin || m?.purchaseUrl) && <button onClick={()=>void call("store",{id})}>{m?.origin?'View ↗':'View on Steam ↗'}</button>}
       {job?.status==='completed'&&!g?.installed&&<button onClick={()=>void call('detectInstall',{id:job.id})}>Find installed game</button>}
-      {id && g?.owned && !g.installed && !m?.comingSoon && <button disabled={!native(m,g)} onClick={()=>void call("installSteam",{id})}>Install in Steam</button>}
-      {!native(m,g)&&<small>Unavailable on this platform · native games only</small>}
+      {g?.store==='steam' && g.steamId && g.owned && !g.installed && !m?.comingSoon && <button disabled={!native(m,g)} onClick={()=>void call("installSteam",{id:g.steamId})}>Install in Steam</button>}
+      {!native(m,g)&&<small>{officialSourceDownload?'Downloads available from enabled sources · game compatibility is unverified.':'Unavailable on this platform · native games only'}</small>}
     </div>{job&&<button className="game-download-progress" onClick={()=>navigate("Downloads")} aria-label="View game download">
       <span>{job.status === "external" ? "Continue on download host" : job.status + (job.total>0?" · "+Math.min(100,job.downloaded/job.total*100).toFixed(1)+"%":" · waiting for metadata")} →</span>
       {job.status !== "external"&&<progress max={job.total||1} value={job.total?job.downloaded:undefined}/>}
