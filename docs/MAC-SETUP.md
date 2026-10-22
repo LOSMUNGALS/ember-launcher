@@ -1,4 +1,6 @@
-# Native macOS setup — Ember 2.0
+# Native macOS setup — Ember 1.0
+
+The Apple Silicon ZIP has now been built and tested on a native GitHub macOS runner. See [exports and validation](EXPORTS.md). Real-device game compatibility and Apple signing/notarization remain separate checks.
 
 The latest specification replaces the old Wine workflow. Ember 2 does not run Windows-only games on macOS and does not install Wine, CrossOver, Proton or DXVK. Old compatibility setup instructions no longer apply.
 

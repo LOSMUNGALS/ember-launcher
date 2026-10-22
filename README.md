@@ -82,6 +82,8 @@ The account browser smoke test currently uses Microsoft Edge, which must be inst
 
 ## Tests and builds
 
+Windows and Apple Silicon Mac 1.0.0 exports: see [export files and native build evidence](docs/EXPORTS.md).
+
 The latest [release verification report](docs/RELEASE-VERIFICATION.md) records tested features, artwork coverage, source health and outstanding release gates. A successful build does not certify every external release or Mac execution.
 
 Launcher self-updates and the administrator release editor: see [release publishing and update verification](docs/LAUNCHER-UPDATES.md). `npm run package:installer` builds an unpublished Windows installer candidate with automatic-update support. Portable/source builds remain available for development. The Updates tab has a persistent unread indicator for new announcements.
