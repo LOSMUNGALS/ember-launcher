@@ -1,5 +1,6 @@
 const { contextBridge, ipcRenderer } = require("electron");
 const actions = new Set([
+  "accountStatus", "accountLogin", "accountRegister", "accountLogout", "accountConfigure", "updates", "publishUpdate",
   "snapshot",
   "importSteam",
   "syncSteam",

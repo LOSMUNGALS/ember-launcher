@@ -11,3 +11,7 @@ handoff/
 steam-key.bin
 .DS_Store
 Thumbs.db
+.account-service/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

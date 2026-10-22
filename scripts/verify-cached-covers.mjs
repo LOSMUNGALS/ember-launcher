@@ -1,4 +1,4 @@
-import { _electron as electron } from "playwright";
+import {electron} from "./authenticated-electron.mjs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -100,4 +100,3 @@ try {
 } finally {
   await app.close();
 }
-

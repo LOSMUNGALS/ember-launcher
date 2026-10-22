@@ -1,0 +1,7 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ember · Account administration</title><link rel="stylesheet" href="/style.css"></head><body>
+<main><header><img src="/logo.png" alt=""><div><h1>ember</h1><p>Account administration</p></div></header>
+<p id="message" role="status"></p>
+<section id="setup" hidden><h2>Create your administrator password</h2><p>This one-time setup is available only on the server computer. Your administrator email is configured on the server.</p><form id="setup-form"><label>Password<input id="new-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label><button>Create administrator</button></form></section>
+<section id="login"><h2>Welcome back</h2><form id="login-form"><label>Username or email<input id="identifier" autocomplete="username" required></label><label>Password<input id="password" type="password" autocomplete="current-password" required></label><button>Log In</button></form></section>
+<section id="dashboard" hidden><div class="row"><h2>Account requests & access</h2><button id="refresh">Refresh</button><button id="logout">Log out</button></div><p>Approve pending requests, reject them for 24 hours, or revoke an existing account. Changes apply immediately to server access.</p><div id="accounts"></div></section>
+<footer>Ember administration · Account decisions are recorded in the server audit log.</footer></main><script src="/admin.js"></script></body></html>

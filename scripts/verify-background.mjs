@@ -1,4 +1,4 @@
-import {_electron as electron} from 'playwright';
+import {electron} from "./authenticated-electron.mjs";
 import {mkdtemp,writeFile,mkdir,copyFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';

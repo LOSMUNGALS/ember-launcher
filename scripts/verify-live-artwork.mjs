@@ -1,4 +1,4 @@
-import {_electron as electron} from 'playwright';
+import {electron} from "./authenticated-electron.mjs";
 import {mkdtemp,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -15,7 +15,7 @@ try{
   await page.locator('nav').getByTitle(tab,{exact:true}).click();
   await page.waitForFunction(()=>document.querySelectorAll('.card-image img').length>=3,{},{timeout:90000});
   if(['Coming Soon','Top Sellers'].includes(tab)){
-   while(await page.locator('.v2-card').count()<99){const before=await page.locator('.v2-card').count();await page.locator('.infinite-loader').scrollIntoViewIfNeeded();await page.waitForFunction(n=>document.querySelectorAll('.v2-card').length>n,before,{timeout:90000});}
+   while(await page.locator('.v2-card').count()<(tab==='Top Sellers'?96:99)){const before=await page.locator('.v2-card').count();await page.locator('.infinite-loader').scrollIntoViewIfNeeded();await page.waitForFunction(n=>document.querySelectorAll('.v2-card').length>n,before,{timeout:90000});}
   }
   await page.locator('.card-image img').evaluateAll(imgs=>imgs.forEach(img=>img.loading='eager'));
   await page.waitForFunction(()=>(()=>{const imgs=Array.from(document.querySelectorAll('.card-image img'));imgs.forEach(img=>img.loading='eager');return imgs.length===document.querySelectorAll('.card-image').length&&imgs.every(img=>img.complete&&img.naturalWidth>0);})(),{},{timeout:60000});
@@ -25,5 +25,5 @@ try{
   await page.screenshot({path:'artifacts/alpha14-'+tab.toLowerCase().replaceAll(' ','-')+'.png'});
  }
  const snap=await page.evaluate(()=>window.ember2.call('snapshot'));
- assert.equal(snap.state.rankings.ids.length,99);assert.match(snap.state.rankings.source,/snapshot/);
+ assert.equal(snap.state.rankings.ids.length,96);assert.match(snap.state.rankings.source,/snapshot/);
 }finally{await app.close();}

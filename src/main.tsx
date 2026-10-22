@@ -1,4 +1,6 @@
 import { Trailer } from './Trailer';
+import {AccountGate, type AccountUser} from './AccountGate';
+import {Updates} from './Updates';
 import { SourcePicker, SourceSettings } from "./DownloadSources";
 import { InfiniteLoader } from './InfiniteLoader';
 import { belongsInLibrary } from "./library-membership";
@@ -52,7 +54,7 @@ const playLabel = (g: Game) =>
   g.store === "steam" && g.steam?.playtimeMinutes === undefined
     ? "Unavailable"
     : hours(playedSeconds(g));
-function App() {
+function App({user,logout}:{user:AccountUser;logout:()=>void}) {
   const catalogRequest=useRef(0);
   const [snap, setSnap] = useState<V2Snapshot>(),
     [page, setPage] = useState("Home"),
@@ -246,6 +248,7 @@ function App() {
     const job = [...state.downloads].reverse().find(j => j.package.steamAppId === id && j.status !== "canceled");
     return <><div className="actions">
       {g?.installed ? <button className="primary" disabled={!native(m,g)||snap!.running.includes(g.id)} onClick={()=>void call("launch",{id:g.id})}>{snap!.running.includes(g.id)?"Running":"▶ Play"}</button> : id && !(m?.comingSoon||m?.isFree||m?.price==='Free'||m?.purchaseUrl) ? <button className="primary" onClick={()=>setSources(true)}>Download</button> : null}
+      {g?.installed && (g.managed || state.downloads.some(j=>j.installedGameId===g.id)) && <button disabled={snap!.running.includes(g.id)} onClick={()=>void call('uninstall',{id:g.id})}>Uninstall</button>}
       {id && (!m?.productType||m.productType==='game') && <button onClick={()=>void call("saveGame",{id})}>{g?.saved?"♥ Saved":"♡ Save to library"}</button>}
       {id && (!m?.origin || m?.purchaseUrl) && <button onClick={()=>void call("store",{id})}>{m?.origin?'View ↗':'View on Steam ↗'}</button>}
       {job?.status==='completed'&&!g?.installed&&<button onClick={()=>void call('detectInstall',{id:job.id})}>Find installed game</button>}
@@ -544,6 +547,9 @@ function App() {
           </nav>
         ))}
         <div className="sidebar-bottom">
+          <button className={page==='Updates'?'selected':''} title="Updates" aria-label="Updates" onClick={()=>navigate('Updates')}>✦ {!collapsed&&'Updates'}</button>
+          {!collapsed&&<small>{user.username}{user.role==='admin'?' · Admin':''}</small>}
+          <button title="Log out" aria-label="Log out" onClick={logout}>↪ {!collapsed&&'Log out'}</button>
           {!collapsed && (
             <>
               <span className="status-dot" />{" "}
@@ -671,7 +677,7 @@ function App() {
                     Remove from library
                   </button>
                   {game.installed &&
-                    (game.managed || game.store === "steam") && (
+                    game.store === "steam" && (
                       <button
                         onClick={() => void call("uninstall", { id: game.id })}
                       >
@@ -701,7 +707,7 @@ function App() {
               {selectedMeta?.trailers?.length ? <section><h2>Trailer</h2><Trailer poster={selectedMeta.banner} src={selectedMeta.trailers[0]} /></section>:null}
               {game?.store === "steam" && <SteamDetails game={game} />}
             </>
-          ) : page === "Home" ? (
+          ) : page === "Updates" ? <Updates admin={user.role==='admin'}/> : page === "Home" ? (
             <>
               <section
                 className="v2-hero"
@@ -1449,7 +1455,7 @@ function Settings({
     </>
   );
 }
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(<AccountGate>{(user,logout)=><App user={user} logout={logout}/>}</AccountGate>);
 
 
 

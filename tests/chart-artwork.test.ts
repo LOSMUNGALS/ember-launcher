@@ -5,9 +5,9 @@ import {matchSteamTitle,lookupTitle} from '../desktop/title-match';
 import {CatalogService} from '../desktop/catalog';
 import {StateStore} from '../desktop/state';
 import type {PackageSource} from '../src/v2types';
-test('both supplied charts retain 99 unique original ranks and product types',()=>{
- for(const kind of ['coming','top'] as const){const rows=chartSnapshot(kind);assert.equal(rows.length,99);assert.equal(new Set(rows.map(r=>r.chartRank)).size,99);assert.equal(rows[0].chartRank,1);assert.equal(rows.at(-1)?.chartRank,100);}
- assert.ok(chartSnapshot('top').some(r=>r.productType==='hardware'));
+test('charts retain original ranks while excluding consoles and hardware',()=>{
+ for(const kind of ['coming','top'] as const){const rows=chartSnapshot(kind);const count=kind==='coming'?99:96;assert.equal(rows.length,count);assert.equal(new Set(rows.map(r=>r.chartRank)).size,count);assert.equal(rows[0].chartRank,1);assert.equal(rows.at(-1)?.chartRank,100);assert.ok(rows.every(r=>r.productType!=='hardware'));}
+ assert.ok(chartSnapshot('top').every(r=>!['Steam Machine','Steam Deck','Steam Controller'].includes(r.title)));
  assert.equal(chartSnapshot('coming')[0].steamAppId,'1422450');
  assert.ok(chartSnapshot('coming').filter(r=>r.portrait).length>=89);
 });
@@ -37,5 +37,5 @@ test('Coming Soon pagination and Top Sellers use supplied snapshots rather than 
  const ids:string[]=[];
  for(let page=0;page<5;page++){const result=await service.search('coming','',page);ids.push(...result.games.map(g=>g.appId));assert.equal(result.hasMore,page<4);assert.match(result.source,/snapshot/);}
  assert.equal(ids.length,99);assert.equal(new Set(ids).size,99);
- const rankings=await service.refreshRankings();assert.equal(rankings.ids.length,99);assert.match(rankings.source,/snapshot/);assert.equal(rankings.region,'Global');
+ const rankings=await service.refreshRankings();assert.equal(rankings.ids.length,96);assert.match(rankings.source,/snapshot/);assert.equal(rankings.region,'Global');
 });

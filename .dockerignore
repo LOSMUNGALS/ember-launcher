@@ -1,0 +1,5 @@
+**
+!server/
+!server/**
+!public/
+!public/launcher.png

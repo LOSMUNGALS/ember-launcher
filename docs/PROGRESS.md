@@ -123,3 +123,5 @@ WebTorrent handles magnets with guarded storage, actual byte counters, restart r
 - Verified Steam IDs and portrait/header URLs enrich both charts. Non-game products use store actions.
 - Removed day-long negative artwork caching; retain verified identities on metadata failure; exact titles outrank edition-normalized DLC matches.
 - 65 tests passed. Live Electron image checks passed on six list pages, including all 198 chart images. Details in ALPHA14.md.
+
+Alpha.16: local account approval/revocation service, login gate, Updates, downloaded-game uninstall and hardware chart filtering. See docs/ALPHA16.md and docs/ACCOUNTS.md for setup, verification and limits.

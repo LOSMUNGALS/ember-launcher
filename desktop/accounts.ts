@@ -1,0 +1,36 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+declare const __EMBER_ACCOUNT_URL__: string;
+export function accountEndpoint(value:string){
+ const u=new URL(value);
+ if(u.username||u.password||u.search||u.hash||u.pathname!=='/')throw Error('Use the service origin only, without credentials or a path.');
+ if(u.protocol!=='https:'&&!(u.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(u.hostname)))throw Error('Account services require HTTPS, except on this computer.');
+ return u.origin;
+}
+export class AccountClient {
+ private token='';
+ private verifiedAt=0;
+ private generation=0;
+ user?:{id:number;username:string;email:string;role:'user'|'admin'};
+ url=accountEndpoint(process.env.EMBER_ACCOUNT_URL||(typeof __EMBER_ACCOUNT_URL__==='string'?__EMBER_ACCOUNT_URL__:'http://127.0.0.1:4783'));
+ constructor(private root:string){}
+ async load(){if(process.env.EMBER_ACCOUNT_URL)return;try{this.url=accountEndpoint(JSON.parse(await readFile(path.join(this.root,'account-service.json'),'utf8')).url);}catch{}}
+ async configure(url:string){const next=accountEndpoint(url);await this.logout();this.url=next;await writeFile(path.join(this.root,'account-service.json'),JSON.stringify({url:next}));return this.status();}
+ status(){return {user:this.user||null,url:this.url};}
+ async request(route:string,body?:unknown){
+  const token=this.token;
+  let response:Response;
+  try{response=await fetch(this.url+'/api/'+route,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',...(this.token?{Authorization:'Bearer '+this.token}:{})},body:body===undefined?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(10000)});}catch{throw Error('Cannot reach the Ember account service. Check the service address and internet connection.');}
+  let data:any;try{data=await response.json();}catch{throw Error('The account service returned an invalid response.');}
+  if(!response.ok){if(response.status===401&&this.token===token){this.token='';this.user=undefined;this.verifiedAt=0;}throw Error(String(data.error||'Account request failed.'));}return data;
+ }
+ async login(payload:unknown){const generation=++this.generation;this.token='';this.user=undefined;const data=await this.request('login',payload);if(this.generation!==generation)throw Error('Login was canceled.');this.token=data.token;this.user=data.user;this.verifiedAt=Date.now();return this.status();}
+ async logout(){++this.generation;const task=this.token?this.request('logout',{}).catch(()=>{}):Promise.resolve();this.token='';this.user=undefined;this.verifiedAt=0;await task;return this.status();}
+ async require(force=false){
+  if(!this.token||!this.user)throw Error('Log in to Ember to continue.');
+  if(force||Date.now()-this.verifiedAt>30000){const generation=this.generation;try{const data=await this.request('me');if(generation!==this.generation)throw Error('Session changed. Log in to continue.');this.user=data.user;this.verifiedAt=Date.now();}catch(e){if(generation===this.generation){this.token='';this.user=undefined;this.verifiedAt=0;}throw e;}}
+  return this.user!;
+ }
+ async updates(before?:number){await this.require(true);return this.request('updates'+(before?'?before='+encodeURIComponent(before):''));}
+ async publish(payload:unknown){await this.require(true);return this.request('updates',payload);}
+}

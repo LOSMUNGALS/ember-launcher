@@ -141,6 +141,7 @@ export interface V2Snapshot {
   message: string;
 }
 export type V2Action =
+  | "accountStatus" | "accountLogin" | "accountRegister" | "accountLogout" | "accountConfigure" | "updates" | "publishUpdate"
   | "snapshot"
   | "importSteam"
   | "syncSteam"

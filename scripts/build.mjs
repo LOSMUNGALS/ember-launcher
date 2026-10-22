@@ -10,6 +10,7 @@ await build({
   external: ["electron", "webtorrent", "fs-chunk-store"],
   target: "node22",
   sourcemap: true,
+  define: { __EMBER_ACCOUNT_URL__: JSON.stringify(process.env.EMBER_ACCOUNT_URL || 'http://127.0.0.1:4783') },
 });
 await copyFile("desktop/preload.cjs", "dist/preload.cjs");
 await cp('data/catalogs', 'dist/catalogs', {recursive:true});

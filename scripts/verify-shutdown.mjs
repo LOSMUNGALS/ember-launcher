@@ -1,4 +1,4 @@
-import {_electron as electron} from 'playwright';
+import {electron} from "./authenticated-electron.mjs";
 import {mkdtemp,writeFile,readFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -30,5 +30,3 @@ try {
  const status=await page.evaluate(async()=> (await window.ember2.call('snapshot')).state.downloads[0].status);
  assert.equal(status,'paused');console.log('PASS: closing during peer discovery saves a paused job; next launch opens successfully.');
 }finally{await instance.close();}
-
-

@@ -1,12 +1,14 @@
 # Ember 2.0 alpha
 
+**Alpha.16 requires the account service.** Run `npm run accounts`, use the one-time setup link to create the administrator password, then open the launcher. The approval website is local at http://127.0.0.1:4783. See [account setup and hosting](docs/ACCOUNTS.md) and [alpha.16 changes](docs/ALPHA16.md). The notes below include earlier milestones; the alpha.16 notes describe current account access and chart behavior.
+
 A real Electron + React + TypeScript desktop launcher for Windows 10/11 and native macOS games. This updates the existing Ember project; it does not use MaPC's proprietary interface or redistribute compatibility engines.
 
 **The 2.0 specification supersedes the earlier Wine milestone: Windows games do not run on Mac through Ember.** Wine, DXVK setup, Epic and GOG navigation/integration have been removed. Existing manually registered games remain local entries.
 
 ## Open the launcher
 
-Windows: open `release/Ember 2.0.0-alpha.15.exe` after packaging, or run the source:
+Windows: open `release/Ember 2.0.0-alpha.16.exe` after packaging, or run the source:
 
 ```sh
 npm ci

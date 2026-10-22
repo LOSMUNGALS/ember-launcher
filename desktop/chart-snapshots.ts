@@ -22,6 +22,6 @@ export function chartSnapshot(kind:'coming'|'top'):CatalogGame[] {
    content:'allowed' as const,updated:wishlist.snapshot_date+'T00:00:00.000Z',discoveryList:kind,
    isFree:row.free===true,price:row.free?'Free':typeof row.price_usd==='number'?`$${row.price_usd.toFixed(2)}`:undefined,
    purchaseUrl:steamAppId?(row.type.toLowerCase()==='game'?undefined:`https://store.steampowered.com/app/${steamAppId}/`):'https://store.steampowered.com/search/?term='+encodeURIComponent(row.name)};
- }).sort((a,b)=>a.chartRank-b.chartRank);
+ }).filter(row=>row.productType!=='hardware').sort((a,b)=>a.chartRank-b.chartRank);
 }
-export const chartSource=(kind:'coming'|'top')=>`Supplied SteamDB ${kind==='coming'?'most wishlisted':'global top sellers'} snapshot · ${wishlist.snapshot_date} · 99 of 100 products (one omitted in file)`;
+export const chartSource=(kind:'coming'|'top')=>`Supplied SteamDB ${kind==='coming'?'most wishlisted':'global top sellers'} snapshot · ${wishlist.snapshot_date} · ${chartSnapshot(kind).length} entries · console/hardware products excluded; original ranks preserved`;

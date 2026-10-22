@@ -1,4 +1,4 @@
-import { _electron as electron } from "playwright";
+import { electron } from "./authenticated-electron.mjs";
 import { mkdir, writeFile, readFile, mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -27,7 +27,7 @@ const local = {
     process.platform === "win32"
       ? path.join(process.env.SystemRoot, "System32", "ping.exe")
       : "/bin/sleep",
-  args: process.platform === "win32" ? ["-n", "3", "127.0.0.1"] : ["2"],
+  args: process.platform === "win32" ? ["-n", "5", "127.0.0.1"] : ["4"],
   store: "local",
   platform: "native",
   seconds: 0,

@@ -1,4 +1,4 @@
-import {_electron as electron} from 'playwright';
+import {electron} from "./authenticated-electron.mjs";
 import {mkdir,mkdtemp,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import assert from 'node:assert/strict';
@@ -15,4 +15,3 @@ try{const page=await app.firstWindow();await page.locator('.v2-app').waitFor();a
 }finally{await app.close();}
 
 const restarted=await electron.launch(options);try{const page=await restarted.firstWindow();await page.locator('.v2-app').waitFor();assert.equal(await page.locator('.v2-hero .eyebrow').innerText(),'PICK UP WHERE YOU LEFT OFF');assert.equal(await page.locator('.v2-hero h1').innerText(),'Played fixture');console.log('PASS: next desktop startup features the recent game.');}finally{await restarted.close();}
-

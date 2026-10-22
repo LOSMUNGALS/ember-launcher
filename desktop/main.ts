@@ -1,4 +1,6 @@
 import { HostDownloads } from "./host-downloads";
+import {AccountClient} from './accounts';
+import {downloadedInstallDirectory,uninstallDownloaded} from './download-uninstall';
 import {detectedExecutables,installationRecords,executableStamp} from './detect-install';
 import {communityKey,communityTitle} from '../src/community-title';
 import { packageMatches } from "../src/package-matching";
@@ -68,6 +70,8 @@ else
         state = new StateStore(path.join(root, "ember2.json"));
       await library.load();
       await state.load();
+      const accounts = new AccountClient(root);
+      await accounts.load();
       if ((state.data.defaultSourcesVersion || 0) < 3 && !process.env.EMBER_DATA_DIR) {
         const supplied = await bundledSources(path.join(__dirname,'catalogs'));
         const keys = new Set(supplied.map(s=>sourceKey(s.url)));
@@ -88,6 +92,7 @@ else
         d.games = d.games.filter(isPlayableEntry);
       });
       const catalog = new CatalogService(state);
+      if(!process.env.EMBER_DATA_DIR)await catalog.refreshRankings();
       let busy = false,
         message = "",
         scanning = false,
@@ -422,6 +427,7 @@ else
         return g;
       }
       async function launch(id: string) {
+        await accounts.require(true);
         const g = find(id);
         if (!g.installed) throw Error("Install this game first.");
         if (running.has(id)) throw Error("This game is already running.");
@@ -618,6 +624,14 @@ else
         return sourceSync;
       }
       async function action(type: V2Action, p: any = {}) {
+        if(type==='accountStatus') { if(accounts.user) await accounts.require().catch(()=>{}); return accounts.status(); }
+        if(type==='accountLogin') return accounts.login(p);
+        if(type==='accountRegister') return accounts.request('register',p);
+        if(type==='accountLogout') return accounts.logout();
+        if(type==='accountConfigure') return accounts.configure(String(p.url));
+        await accounts.require();
+        if(type==='updates')return accounts.updates(p.before);
+        if(type==='publishUpdate')return accounts.publish(p);
         switch (type) {
           case "snapshot": {
             const sourcesRevision = JSON.stringify(state.data.sources.map(s=>[s.id,s.url,s.updated,s.enabled,s.error,s.packages.length]));
@@ -965,10 +979,23 @@ else
               return shell.openExternal(
                 "steam://uninstall/" + appId(g.steamId!),
               );
-            if (!g.managed)
-              throw Error(
-                "Use the operating system to uninstall this manually added game.",
-              );
+            if (!g.managed) {
+              const job=state.data.downloads.find(j=>j.installedGameId===g.id);
+              if(!job)throw Error('Use the operating system to uninstall this manually added game.');
+              let directory:string;
+              try{directory=await downloadedInstallDirectory(job.destination,job.id,g.executable);}
+              catch{
+                if(await confirm('Open the system uninstaller?', 'This game was installed outside its Ember download folder. Remove it using the operating system uninstaller. Ember will not delete that folder.')){
+                  if(process.platform==='win32')await shell.openExternal('ms-settings:appsfeatures');else shell.showItemInFolder(g.executable);
+                }
+                return;
+              }
+              if(!await confirm('Uninstall '+g.name+'?',directory+'\nThis deletes the game and all downloaded files in this Ember folder. Saves inside it will also be removed.'))return;
+              await uninstallDownloaded(job.destination,job.id,g.executable);
+              await library.mutate(d=>{const target=d.games.find(x=>x.id===g.id)!;target.installed=false;target.executable='';target.managed=undefined;});
+              job.installedGameId=undefined;job.status='canceled';await state.save();return;
+            }
+            const managed = {...g.managed};
             if (
               await confirm(
                 "Uninstall " + g.name + "?",
@@ -976,7 +1003,7 @@ else
                   "\nAll files inside this managed folder will be deleted.",
               )
             ) {
-              await uninstallManaged(g.managed.directory);
+              await uninstallManaged(managed.directory);
               await library.mutate((d) => {
                 const target = d.games.find((x) => x.id === g.id)!;
                 target.installed = false;
@@ -984,7 +1011,7 @@ else
                 target.managed = undefined;
               });
               const job = state.data.downloads.find(
-                (j) => j.id === g.managed!.jobId,
+                (j) => j.id === managed.jobId,
               );
               if (job) job.installedGameId = undefined;
               await state.save();
@@ -1039,7 +1066,7 @@ else
         try {
           return await action(type, p);
         } finally {
-          if (type !== "snapshot") changed();
+          if (type !== "snapshot" && type !== "accountStatus" && type !== "updates") changed();
         }
       });
       function createWindow() {
