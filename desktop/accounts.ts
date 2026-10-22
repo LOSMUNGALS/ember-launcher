@@ -20,7 +20,7 @@ export class AccountClient {
  async request(route:string,body?:unknown){
   const token=this.token;
   let response:Response;
-  try{response=await fetch(this.url+'/api/'+route,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',...(this.token?{Authorization:'Bearer '+this.token}:{})},body:body===undefined?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(10000)});}catch{throw Error('Cannot reach the Ember account service. Check the service address and internet connection.');}
+  try{response=await fetch(this.url+'/api/'+route,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',...(this.token?{Authorization:'Bearer '+this.token}:{})},body:body===undefined?undefined:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(this.url.startsWith('https:')?75000:10000)});}catch{throw Error(this.url.startsWith('https:')?'The Ember account service did not respond. It may be waking up; wait a moment and try again. Check Account service connection if the problem continues.':'Cannot reach the local account service. For shared Ember accounts, open Account service connection and save https://ember-accounts.onrender.com.');}
   let data:any;try{data=await response.json();}catch{throw Error('The account service returned an invalid response.');}
   if(!response.ok){if(response.status===401&&this.token===token){this.token='';this.user=undefined;this.verifiedAt=0;}throw Error(String(data.error||'Account request failed.'));}return data;
  }
