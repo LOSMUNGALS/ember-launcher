@@ -3,9 +3,10 @@ import {AccountGate, type AccountUser} from './AccountGate';
 import {Updates} from './Updates';
 import { SourcePicker, SourceSettings } from "./DownloadSources";
 import { InfiniteLoader } from './InfiniteLoader';
+import { catalogCandidates } from './catalog-view';
 import { belongsInLibrary } from "./library-membership";
 import { ScreenshotGallery } from "./ScreenshotGallery";
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import type { Game } from "./types";
 import type { CatalogGame, V2Snapshot, V2Action, Preferences } from "./v2types";
@@ -193,6 +194,22 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     setYear("all");
     setError("");
   };
+  const filteredDiscovery=filter!=='all'||genre!=='all'||platform!=='all'||rating>0||reviewCount>0||year!=='all';
+  const home=useMemo(()=>snap?homeSelection(snap.games,snap.state.catalog,snap.state.preferences,snap.state.visits,snap.running):undefined,[snap]);
+  const gamesByCatalog=useMemo(()=>{
+    const index=new Map<string,Game>();
+    for(const game of snap?.games||[])for(const id of [game.steamId,game.catalogId])if(id)index.set(id,game);
+    return index;
+  },[snap]);
+  const discoveryGames=useMemo(()=>snap?catalogCandidates(results,snap.state.catalog,page==='Coming Soon'?'coming':'all',filteredDiscovery).filter(m=>quality(m,snap.state.preferences)):[],[results,snap,page,filteredDiscovery]);
+  const genres=useMemo(()=>[...new Set(Object.values(snap?.state.catalog||{}).flatMap(g=>g.genres))].sort(),[snap]);
+  const loadMore=async()=>{
+    const request=catalogRequest.current;
+    const r=await call('catalog',{kind:page==='Coming Soon'?'coming':'all',term:query,page:pageIndex+1});
+    if(request!==catalogRequest.current)return;
+    if(!r)throw Error('Unable to load more games');
+    setResults(old=>[...new Map([...old,...r.games].map(g=>[g.appId,g])).values()]);setPageIndex(n=>n+1);setHasMore(r.hasMore);
+  };
   if (!snap)
     return (
       <div className="startup">
@@ -233,13 +250,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     setError("");
   };
   const { recommendations, recent, recentPick, heroGame, heroMeta, discover } =
-    homeSelection(
-      games,
-      state.catalog,
-      state.preferences,
-      state.visits,
-      snap.running,
-    );
+    home!;
   const heroId =
     heroGame?.id || (heroMeta ? "steam-" + heroMeta.appId : undefined);
   const theme = game?.themeColor || heroGame?.themeColor || "#273b40";
@@ -402,9 +413,6 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
                 )
               : a.name.localeCompare(b.name),
     );
-  const genres = [
-    ...new Set(Object.values(state.catalog).flatMap((g) => g.genres)),
-  ].sort();
   const filters = (
     <div className="filter-row">
       <select
@@ -959,15 +967,15 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
               ) : (
                 <>
                   <p className="muted">
-                    {sourceLabel} · Filters apply to loaded results. Set review
+                    {sourceLabel} · Filters apply to games loaded on this device. Set review
                     thresholds in Settings.
                   </p>
                   <div className={"game-collection " + view}>
-                    {results
+                    {discoveryGames
                       .filter((m) =>
                         filterMeta(
                           m,
-                          games.find((g) => (g.steamId || g.catalogId) === m.appId),
+                          gamesByCatalog.get(m.steamAppId||m.appId),
                         ),
                       )
                       .sort((a, b) =>
@@ -988,24 +996,18 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
                       )
                       .map((m) =>
                         card(
-                          games.find((g) => (g.steamId || g.catalogId) === m.appId),
+                          gamesByCatalog.get(m.steamAppId||m.appId),
                           m,
                         ),
                       )}
                   </div>
-                  {!results.length && !pending && (
+                  {!discoveryGames.some(m=>filterMeta(m,gamesByCatalog.get(m.steamAppId||m.appId))) && !pending && (
                     <p className="empty">
                       No eligible games on this page. Try another search or load
                       the next page.
                     </p>
                   )}
-                  <InfiniteLoader hasMore={hasMore} loading={pending>0} onLoad={async()=>{
-                    const request=catalogRequest.current;
-                    const r=await call('catalog',{kind:page==='Coming Soon'?'coming':'all',term:query,page:pageIndex+1});
-                    if(request!==catalogRequest.current)return;
-                    if(!r)throw Error('Unable to load more games');
-                    setResults(old=>[...new Map([...old,...r.games].map(g=>[g.appId,g])).values()]);setPageIndex(n=>n+1);setHasMore(r.hasMore);
-                  }} />                </>
+                  {filteredDiscovery ? hasMore&&<button disabled={pending>0} onClick={()=>void loadMore().catch(()=>{})}>{pending>0?'Loading more games…':'Load more games'}</button> : <InfiniteLoader hasMore={hasMore} loading={pending>0} onLoad={loadMore}/>}                </>
               )}
             </>
           ) : page === "Downloads" ? (

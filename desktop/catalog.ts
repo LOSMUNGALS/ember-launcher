@@ -160,10 +160,25 @@ export class CatalogService {
   private wishlist?: {ids:string[];source:string;time:number};
   community() {
     const revision=JSON.stringify(this.store.data.sources.map(s=>[s.id,s.enabled,s.updated,s.packages.length]));
-    if(revision!==this.sourceRevision){this.sourceIndex=communityCatalog(this.store.data.sources);this.sourceRevision=revision;}
+    if(revision!==this.sourceRevision){this.sourceIndex=communityCatalog(this.store.data.sources);this.sourceRevision=revision;this.communityChecked.clear();}
     return this.sourceIndex;
   }
-  async communityDetail(id:string):Promise<CatalogGame> {
+  private communityChecked=new Map<string,number>();
+  private communityPending=new Map<string,Promise<CatalogGame>>();
+  async communityDetail(id:string,persist=true):Promise<CatalogGame> {
+    this.community();
+    const old=this.store.data.catalog[id];
+    if(old&&Date.now()-(this.communityChecked.get(id)||0)<300000)return old;
+    let task=this.communityPending.get(id);
+    if(!task){task=this.resolveCommunityDetail(id);this.communityPending.set(id,task);}
+    try{
+      const result=await task;
+      this.communityChecked.set(id,Date.now());
+      if(persist&&result!==old)await this.store.save();
+      return result;
+    }finally{if(this.communityPending.get(id)===task)this.communityPending.delete(id);}
+  }
+  private async resolveCommunityDetail(id:string):Promise<CatalogGame> {
     const entry=this.community().find(g=>g.appId===id);if(!entry)throw Error('Catalog game not found.');
     const old=this.store.data.catalog[id];if(old&&old.origin!=='community'&&old.artworkVersion===1&&Date.now()-Date.parse(old.updated)<86400000)return old;
     if(entry.purchaseUrl){this.store.data.catalog[id]=entry;return entry;}
@@ -172,7 +187,7 @@ export class CatalogService {
       const match=matchSteamTitle(entry.title,result.items);
       if(match){
        const fallback:CatalogGame={...entry,appId:String(match.id),origin:undefined,title:match.name,cover:typeof match.tiny_image==='string'&&/^https:\/\/[\w.-]+\.steamstatic\.com\//.test(match.tiny_image)?match.tiny_image:'',updated:new Date().toISOString()};
-       const meta=await this.detail(String(match.id)).catch(()=>fallback);
+       const meta=await this.detail(String(match.id),false,false).catch(()=>fallback);
        this.store.data.catalog[id]=meta;this.store.data.catalog[meta.appId]=meta;return meta;
       }
     }catch{/* Keep unmatched catalog records visible without inventing Steam ownership. */}
@@ -180,7 +195,7 @@ export class CatalogService {
   }
   private pending = new Map<string, Promise<CatalogGame>>();
   constructor(private store: StateStore, private readJson:typeof jsonHttps=jsonHttps) {}
-  async detail(id: string, force = false): Promise<CatalogGame> {
+  async detail(id: string, force = false, persist = true): Promise<CatalogGame> {
     appId(id);
     const old = this.store.data.catalog[id];
     if (!force && old && (old.artworkVersion === 1 || Boolean(process.env.EMBER_DATA_DIR)) && Date.now() - Date.parse(old.updated) < 86400000)
@@ -201,7 +216,7 @@ export class CatalogService {
       const game = parseCatalog(id, raw, reviews);
       game.portrait=steamPortrait(id,assets);game.artworkVersion=1;game.discoveryList=old?.discoveryList;
       this.store.data.catalog[id] = game;
-      await this.store.save();
+      if(persist)await this.store.save();
       return game;
     })();
     this.pending.set(id, job);
@@ -231,9 +246,11 @@ export class CatalogService {
     if(kind==='all'&&!preferences.catalogUrl){
       const entries=this.community().filter(g=>g.title.toLowerCase().includes(term.toLowerCase()));
       if(page*24<entries.length){
+        const rows=entries.slice(page*24,(page+1)*24);
+        const before=rows.map(g=>this.store.data.catalog[g.appId]);
         const games:CatalogGame[]=[];
-        for(let n=page*24;n<Math.min(entries.length,(page+1)*24);n+=4){const group=await Promise.all(entries.slice(n,Math.min(n+4,(page+1)*24)).map(g=>this.communityDetail(g.appId)));games.push(...group);}
-        await this.store.save();
+        for(let n=0;n<rows.length;n+=4){const group=await Promise.all(rows.slice(n,n+4).map(g=>this.communityDetail(g.appId,false)));games.push(...group);}
+        if(rows.some((g,i)=>this.store.data.catalog[g.appId]!==before[i]))await this.store.save();
         return {games:[...new Map(games.map(g=>[g.appId,g])).values()],page,hasMore:true,source:'Combined download catalogs · matched store metadata where available'};
       }
       page-=Math.ceil(entries.length/24);
