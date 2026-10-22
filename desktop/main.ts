@@ -1,6 +1,7 @@
 import { HostDownloads } from "./host-downloads";
 import {AccountClient} from './accounts';
 import {LauncherUpdates} from './launcher-updates';
+import {updaterDriver} from './updater-module';
 import {AnnouncementRead} from './announcement-read';
 import {downloadedInstallDirectory,uninstallDownloaded} from './download-uninstall';
 import {detectedExecutables,installationRecords,executableStamp} from './detect-install';
@@ -116,7 +117,7 @@ else
       await downloads.initialize();
       hostDownloads = new HostDownloads(state, changed);
       const updaterSupported=app.isPackaged&&process.platform==='win32'&&!process.env.PORTABLE_EXECUTABLE_FILE;
-      const updateDriver=updaterSupported?(await import('electron-updater')).autoUpdater:undefined;
+      const updateDriver=updaterSupported?updaterDriver(await import('electron-updater')):undefined;
       const launcherUpdates=new LauncherUpdates(updateDriver,app.getVersion(),changed,{
         prepare:async()=>{
           if(running.size||installing)throw Error('Close running games and finish game installation before updating Ember.');

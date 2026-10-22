@@ -40,7 +40,7 @@ try{
  await page.getByRole('button',{name:'Updates',exact:true}).click();await page.getByText('Third announcement',{exact:true}).waitFor();await page.getByRole('status',{name:'Unread announcements',exact:true}).waitFor({state:'hidden'});
  await page.getByTitle('Home',{exact:true}).click();
  const currentVersion=(await page.evaluate(()=>window.ember2.call('snapshot'))).launcherUpdate.currentVersion;
- await page.getByTitle('Settings',{exact:true}).click();await page.getByRole('button',{name:'Test update (refresh only)',exact:true}).click();
+ await page.getByTitle('Settings',{exact:true}).click();assert.equal(await page.getByRole('button',{name:'Test update (refresh only)',exact:true}).count(),0);await page.evaluate(()=>window.ember2.call('previewLauncherUpdate'));
  await page.getByRole('button',{name:'Update available',exact:true}).click();
  await page.getByRole('dialog',{name:'Ember launcher update'}).getByRole('heading',{name:'Local update test',exact:true}).waitFor();
  assert.equal((await page.evaluate(()=>window.ember2.call('launcherUpdateStatus'))).testOnly,true);
