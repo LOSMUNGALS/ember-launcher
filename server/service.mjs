@@ -52,6 +52,7 @@ export class Accounts {
  async register(p){
   const c=credentials(p);
   if(c.email===this.adminEmail)fail(409,'This address is reserved for the administrator.');
+  if(c.username.toLowerCase()==='ember-admin')fail(409,'This username is reserved for the administrator.');
   let old=this.db.prepare('SELECT * FROM users WHERE email=? OR username=?').all(c.email,c.username);
   if(old.length>1)fail(409,'Username or email is unavailable.');
   const existing=old[0];

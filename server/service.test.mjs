@@ -6,6 +6,15 @@ import path from 'node:path';
 import {Accounts,validMedia} from './service.mjs';
 import {startService} from './index.mjs';
 const password='Test-password-only-29381';
+
+test('registration cannot claim the administrator username before setup',async()=>{
+ const a=new Accounts(':memory:','owner@example.com');
+ try{
+  for(const username of ['ember-admin','EMBER-ADMIN'])await assert.rejects(a.register({email:'player@example.com',username,password}),/reserved/);
+  await a.bootstrap(password);
+  assert.equal((await a.login({identifier:'owner@example.com',password})).user.role,'admin');
+ }finally{a.close();}
+});
 test('pending approval, persistent accounts, 24-hour rejection, revocation and admin-only posts',async()=>{
  const root=await mkdtemp(path.join(os.tmpdir(),'ember-accounts-'));let now=Date.now(),a=new Accounts(path.join(root,'test.sqlite'),'owner@example.com',()=>now);
  try{

@@ -18,6 +18,50 @@ npm start
 
 Use Node.js 24 LTS. In PowerShell, use `npm.cmd` if local policy blocks `npm.ps1`. `npm run dev` builds and launches Electron; it is not a browser preview. Closing the window keeps Ember in the system tray so downloads, install detection, and directly launched game tracking continue. Use the tray menu → Quit Ember to exit.
 
+Before connecting Steam on a new computer, follow the synchronization workflow below. Source code sync does not transfer accounts, installed games, or device credentials.
+
+## Synchronize laptop and desktop
+
+Use Node.js **24 LTS** on both computers (`.nvmrc` and `package.json` record this requirement). Install Git and Node with npm available on PATH; reopen the terminal after installation. Check `node --version` and `npm --version`. If PowerShell blocks npm, use `npm.cmd`; if it cannot find npm, check the Node installation/PATH (the standard Windows location is `C:\Program Files\nodejs\npm.cmd`).
+
+Before starting work on either computer, commit or stash any local changes, then:
+
+```sh
+git fetch origin
+git switch codex/initial-import
+git pull --ff-only origin codex/initial-import
+npm ci
+npm run build
+npm test
+npm run test:accounts
+```
+
+In one terminal, run `npm run accounts` and keep it open. On a fresh local database, use the setup link printed in that terminal to create the administrator. In another terminal run `npm start` (or `npm run dev` after code changes). The admin website runs at [http://127.0.0.1:4783](http://127.0.0.1:4783).
+
+Before moving to the other computer:
+
+```sh
+npm run build
+npm test
+npm run test:accounts
+npm run smoke
+npm run smoke:accounts
+git diff
+git status
+git add <specific-files-you-changed>
+git commit -m "Describe the verified change"
+git fetch origin
+git push origin codex/initial-import
+```
+
+If pull or push reports diverging/newer work, integrate and review those commits, resolve conflicts, and rerun checks before pushing. Never force-push or use a hard reset to replace the other computer's work. This is the existing development branch; do not restart the project or copy an old source archive over it.
+
+Git synchronizes source, documentation and the dependency lockfile. Run `npm ci` independently on each device; do not copy `node_modules`, `dist`, `release`, `.account-service`, `.env`, or Electron userData through Git. Steam credentials are encrypted for each device; reconnect them. Game folders, absolute paths, downloads and saves remain device-specific; back up userData before deliberate migration.
+
+Two local account services have **separate accounts and Updates**. To share approvals and announcements between laptop and desktop, configure both launchers to use the same hosted HTTPS account service. GitHub does not host that service. See [account deployment and backups](docs/ACCOUNTS.md); do not sync a running SQLite database through a shared folder.
+
+The account browser smoke test currently uses Microsoft Edge, which must be installed on the Windows test machine. See [laptop verification](docs/LAPTOP-VERIFICATION.md) for current evidence and remaining work.
+
 ## Connect Steam
 
 1. Install Steam and sign in normally. In Ember, select **Library → Import Steam** and choose the Steam folder containing `steamapps`. Additional library drives are read from Steam's `libraryfolders.vdf`; registered roots are scanned every 30 seconds.
