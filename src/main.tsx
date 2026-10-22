@@ -1471,8 +1471,8 @@ function Settings({
           />
         </label>
         <p>
-          Low-review games remain eligible. Explicit sexual content and entries
-          without sufficient content classification are excluded from discovery.
+          Low-review games remain eligible. Adult titles and entries without
+          content classifications are included. Review filters still apply.
         </p>
         <button className="primary">Save preferences</button>
       </form>

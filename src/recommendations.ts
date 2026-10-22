@@ -1,7 +1,6 @@
 import type { CatalogGame, Preferences } from "./v2types";
 import type { Game } from "./types";
 export function quality(g: CatalogGame, p: Preferences) {
-  if (g.content !== "allowed") return false;
   const r = g.reviews;
   if (!r || r.total < p.minimumReviews) return true;
   return r.total > 0 && (r.positive / r.total) * 100 >= p.minimumPositive;

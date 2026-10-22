@@ -113,7 +113,7 @@ test("ownership requires complete official records and preserves real zero playt
     0,
   );
 });
-test("catalog excludes explicit or unclassified content without penalizing small samples", () => {
+test("catalog includes adult and unclassified titles without penalizing small samples", () => {
   const raw: any = {
     "10": {
       success: true,
@@ -137,7 +137,7 @@ test("catalog excludes explicit or unclassified content without penalizing small
   raw[10].data.content_descriptors.ids = [3];
   assert.equal(
     quality(parseCatalog("10", raw, null), initialState().preferences),
-    false,
+    true,
   );
   delete raw[10].data.content_descriptors;
   assert.equal(parseCatalog("10", raw, null).content, "uncertain");
