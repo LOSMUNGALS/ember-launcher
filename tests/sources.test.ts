@@ -9,6 +9,21 @@ import {packageMatches,downloadOptions} from '../src/package-matching';
 import {runTorrent,torrentDirectory,validateTorrentFiles} from '../desktop/torrents';
 import type {DownloadJob} from '../src/v2types';
 const magnet='magnet:?xt=urn:btih:'+'a'.repeat(40);
+
+test('dotted release versions match their base game without swallowing sequels',()=>{
+ const source={id:'versions',url:'https://example.com/catalog.json',enabled:true,...parseSourceFeed({name:'Versions',downloads:[
+  {title:'Funnel Runners 0.34.28',uris:[magnet]},
+  {title:'Ore Factory Squad 1.0.4',uris:[magnet]},
+  {title:'Ore Factory Squad 1.0.2',uris:[magnet]},
+  {title:'A Game About Chopping Trees 1.0.0.2',uris:[magnet]},
+ ]})};
+ assert.equal(downloadOptions([source],undefined,'Funnel Runners','win32').length,1);
+ assert.equal(downloadOptions([source],undefined,'Ore Factory Squad','win32').length,2);
+ assert.equal(downloadOptions([source],undefined,'A Game About Chopping Trees','win32').length,1);
+ assert.equal(packageMatches({...source.packages[0],title:'Portal 2 1.0.4'},undefined,'Portal'),false);
+ assert.equal(packageMatches({...source.packages[0],title:'Portal 2 1.0.4'},undefined,'Portal 2'),true);
+ assert.equal(packageMatches({...source.packages[0],steamAppId:'620'},'400','Funnel Runners'),false);
+});
 test('release matching accepts patch and hotfix suffixes without matching sequels',()=>{
  const pkg=parseSourceFeed({name:'Fixture',downloads:[{title:'Enshrouded (Patch #13 - Hotfix #35 v0.9)',uris:[magnet]}]}).packages[0];
  assert.equal(packageMatches(pkg,undefined,'Enshrouded'),true);

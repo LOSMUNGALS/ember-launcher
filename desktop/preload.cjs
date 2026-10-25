@@ -4,6 +4,7 @@ const actions = new Set([
   "launcherUpdateStatus", "checkLauncherUpdate", "installLauncherUpdate", "announcementStatus", "readAnnouncements",
   "accountForgotPassword",
   "accountStatus", "accountLogin", "accountRegister", "accountLogout", "accountConfigure", "updates", "publishUpdate",
+  "feedbackList", "feedbackThread", "feedbackImage", "createFeedback", "replyFeedback", "moderateFeedback",
   "snapshot",
   "importSteam",
   "syncSteam",

@@ -99,6 +99,9 @@ else
         d.games = d.games.filter(isPlayableEntry);
       });
       const catalog = new CatalogService(state);
+      // Index every enabled local catalog before exposing the launcher UI.
+      // Store metadata and network availability must not determine inclusion.
+      catalog.community();
       if(!process.env.EMBER_DATA_DIR)await catalog.refreshRankings();
       let busy = false,
         updating = false,
@@ -656,6 +659,7 @@ else
           await state.save(); changed();
         }};
         await Promise.all([worker(),worker()]);
+        catalog.community();
         })().finally(()=>{sourceSync=undefined});
         return sourceSync;
       }
@@ -683,6 +687,12 @@ else
         if(updating&&type!=='snapshot')throw Error('Ember is preparing a launcher update. Please wait.');
         if(type==='updates')return accounts.updates(p.before);
         if(type==='publishUpdate')return accounts.publish(p);
+        if(type==='feedbackList')return accounts.request('feedback?'+new URLSearchParams({query:String(p.query||''),label:String(p.label||''),...(p.before?{before:String(p.before)}:{})}));
+        if(type==='feedbackThread')return accounts.request('feedback/thread?'+new URLSearchParams({id:String(p.id),...(p.before?{before:String(p.before)}:{})}));
+        if(type==='feedbackImage')return accounts.request('feedback/image?id='+encodeURIComponent(p.id));
+        if(type==='createFeedback')return accounts.request('feedback',p);
+        if(type==='replyFeedback')return accounts.request('feedback/reply',p);
+        if(type==='moderateFeedback')return accounts.request('feedback/moderate',p);
         switch (type) {
           case "snapshot": {
             const sourcesRevision = JSON.stringify(state.data.sources.map(s=>[s.id,s.url,s.updated,s.enabled,s.error,s.packages.length]));
@@ -1118,7 +1128,7 @@ else
         try {
           return await action(type, p);
         } finally {
-          if (!['snapshot','accountStatus','updates','announcementStatus','launcherUpdateStatus','checkLauncherUpdate'].includes(type)) changed();
+          if (!['snapshot','accountStatus','updates','announcementStatus','launcherUpdateStatus','checkLauncherUpdate','feedbackList','feedbackThread','feedbackImage'].includes(type)) changed();
         }
       });
       function createWindow() {

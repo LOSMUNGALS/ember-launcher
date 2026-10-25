@@ -1,6 +1,7 @@
 import { Trailer } from './Trailer';
 import {AccountGate, type AccountUser} from './AccountGate';
 import {Updates} from './Updates';
+import {Feedback} from './Feedback';
 import {LauncherUpdateDialog} from './LauncherUpdateDialog';
 import { SourcePicker, SourceSettings } from "./DownloadSources";
 import { InfiniteLoader } from './InfiniteLoader';
@@ -29,7 +30,7 @@ const navigation = [
   ["HOME", ["Home"]],
   ["LIBRARY", ["Steam Library", "Library"]],
   ["GAMES", ["All Games", "Coming Soon", "Top Sellers"]],
-  ["MANAGE", ["Downloads", "Settings"]],
+  ["MANAGE", ["Downloads", "Feedback", "Settings"]],
 ] as const;
 const icons: Record<string, string> = {
   Home: "⌂",
@@ -39,6 +40,7 @@ const icons: Record<string, string> = {
   "Coming Soon": "◷",
   "Top Sellers": "↗",
   Downloads: "↓",
+  Feedback: "☏",
   Settings: "⚙",
 };
 const hours = (seconds: number) =>
@@ -749,7 +751,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
               {selectedMeta?.trailers?.length ? <section><h2>Trailer</h2><Trailer poster={selectedMeta.banner} src={selectedMeta.trailers[0]} /></section>:null}
               {game?.store === "steam" && <SteamDetails game={game} />}
             </>
-          ) : page === "Updates" ? <Updates admin={user.role==='admin'} onRead={readAnnouncements} refreshSignal={updatesVisit}/> : page === "Home" ? (
+          ) : page === "Feedback" ? <Feedback admin={user.role==='admin'}/> : page === "Updates" ? <Updates admin={user.role==='admin'} onRead={readAnnouncements} refreshSignal={updatesVisit}/> : page === "Home" ? (
             <>
               <section
                 className="v2-hero"

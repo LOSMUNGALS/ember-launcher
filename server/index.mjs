@@ -33,7 +33,9 @@ export async function startService({directory=path.resolve('.account-service'),p
    let body={};
    if(req.method==='POST'){
     if(!String(req.headers['content-type']).startsWith('application/json'))throw new ApiError(415,'Use JSON.');
-    let bytes=0,chunks=[];for await(const chunk of req){bytes+=chunk.length;if(bytes>65536)throw new ApiError(413,'Request is too large.');chunks.push(chunk);}
+    if(route==='/api/feedback'||route==='/api/feedback/reply')await accounts.authorize(token);
+    const maxBytes=route==='/api/feedback'||route==='/api/feedback/reply'?2200000:65536;
+    let bytes=0,chunks=[];for await(const chunk of req){bytes+=chunk.length;if(bytes>maxBytes)throw new ApiError(413,'Request is too large.');chunks.push(chunk);}
     try{body=JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw new ApiError(400,'Invalid JSON.');}
     if(!body||typeof body!=='object'||Array.isArray(body))throw new ApiError(400,'Invalid request.');
    }
@@ -57,6 +59,12 @@ export async function startService({directory=path.resolve('.account-service'),p
    else if(req.method==='POST'&&route==='/api/logout'){await accounts.logout(token);result={ok:true};}
    else if(req.method==='GET'&&route==='/api/accounts')result={users:await accounts.requests(token)};
    else if(req.method==='POST'&&route==='/api/decision')result=await accounts.decide(token,body.id,body.status);
+   else if(req.method==='GET'&&route==='/api/feedback')result=await accounts.feedbackList(token,Object.fromEntries(url.searchParams));
+   else if(req.method==='GET'&&route==='/api/feedback/thread')result=await accounts.feedbackThread(token,Object.fromEntries(url.searchParams));
+   else if(req.method==='GET'&&route==='/api/feedback/image')result=await accounts.feedbackImage(token,url.searchParams.get('id'));
+   else if(req.method==='POST'&&route==='/api/feedback')result=await accounts.createFeedback(token,body);
+   else if(req.method==='POST'&&route==='/api/feedback/reply')result=await accounts.replyFeedback(token,body);
+   else if(req.method==='POST'&&route==='/api/feedback/moderate')result=await accounts.moderateFeedback(token,body);
    else if(req.method==='GET'&&route==='/api/updates')result={posts:await accounts.posts(token,url.searchParams.get('before')||undefined)};
    else if(req.method==='GET'&&route==='/api/updates/latest')result=await accounts.latestPost(token);
    else if(req.method==='POST'&&route==='/api/updates')result=await accounts.publish(token,body);

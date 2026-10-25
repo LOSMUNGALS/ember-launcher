@@ -145,7 +145,7 @@ try {
   await page.locator(".v2-app").waitFor();
   assert.match(await page.locator("nav button.selected").innerText(), /Home/);
   const nav = (name) => page.locator("nav").getByTitle(name, { exact: true });
-  assert.equal(await page.locator("nav button").count(), 8);
+  assert.equal(await page.locator("nav button").count(), 9);
   await page.evaluate(async () => {
     await Promise.all(
       document.getAnimations().map((a) => a.finished.catch(() => {})),

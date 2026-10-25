@@ -1,6 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {randomBytes, scrypt as derive, timingSafeEqual, createHash} from 'node:crypto';
 import {promisify} from 'node:util';
+import {feedbackLabels,feedbackId,feedbackInput} from './feedback-validation.mjs';
 const scrypt=promisify(derive);
 const digest=t=>createHash('sha256').update(t).digest('hex');
 const DAY=86400000;
@@ -42,7 +43,12 @@ export class Accounts {
    CREATE TABLE IF NOT EXISTS password_resets(token TEXT PRIMARY KEY,userId INTEGER REFERENCES users(id),expires INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS launcher_releases(id INTEGER PRIMARY KEY,version TEXT UNIQUE NOT NULL,title TEXT NOT NULL,body TEXT NOT NULL,published INTEGER NOT NULL DEFAULT 0,updated INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS posts(id INTEGER PRIMARY KEY,body TEXT NOT NULL,media TEXT NOT NULL,created INTEGER NOT NULL,author INTEGER REFERENCES users(id));
-   CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,actor INTEGER,action TEXT,target INTEGER,created INTEGER);`);
+   CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,actor INTEGER,action TEXT,target INTEGER,created INTEGER);
+   CREATE TABLE IF NOT EXISTS feedback_threads(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,body TEXT NOT NULL,author INTEGER NOT NULL REFERENCES users(id),label TEXT NOT NULL DEFAULT 'Open',created INTEGER NOT NULL,updated INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS feedback_messages(id INTEGER PRIMARY KEY AUTOINCREMENT,threadId INTEGER NOT NULL REFERENCES feedback_threads(id),author INTEGER NOT NULL REFERENCES users(id),body TEXT NOT NULL,created INTEGER NOT NULL);
+   CREATE TABLE IF NOT EXISTS feedback_images(id INTEGER PRIMARY KEY AUTOINCREMENT,messageId INTEGER NOT NULL REFERENCES feedback_messages(id),data TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS feedback_message_thread ON feedback_messages(threadId,id);
+   CREATE INDEX IF NOT EXISTS feedback_image_message ON feedback_images(messageId);`);
  }
  setupNeeded(){return !this.db.prepare("SELECT id FROM users WHERE role='admin'").get();}
  async bootstrap(password){
@@ -151,6 +157,61 @@ export class Accounts {
    if(id!==undefined)this.db.prepare('UPDATE launcher_releases SET version=?,title=?,body=?,published=?,updated=? WHERE id=?').run(version,title,body,Number(p.published),this.now(),id);
    this.db.prepare('INSERT INTO audit(actor,action,target,created) VALUES(?,?,?,?)').run(actor.id,p.published?'launcher-release-publish':'launcher-release-save',saved,this.now());
    this.db.exec('COMMIT');return {id:saved,version,title,body,published:p.published};
+  }catch(e){this.db.exec('ROLLBACK');throw e;}
+ }
+ feedbackList(token,p={}){
+  this.authorize(token);
+  const query=String(p.query||'').trim().slice(0,150),label=String(p.label||''),before=p.before?feedbackId(p.before):Number.MAX_SAFE_INTEGER;
+  if(label&&!feedbackLabels.includes(label))fail(400,'Invalid feedback label.');
+  return {posts:this.db.prepare("SELECT t.*,CASE WHEN u.role='admin' THEN 'LOSMUNGALS' ELSE u.username END authorName,(SELECT COUNT(*) FROM feedback_messages m WHERE m.threadId=t.id) messageCount,(SELECT i.id FROM feedback_images i JOIN feedback_messages m ON m.id=i.messageId WHERE m.threadId=t.id ORDER BY i.id LIMIT 1) imageId FROM feedback_threads t JOIN users u ON u.id=t.author WHERE t.id<? AND (?='' OR t.label=?) AND (?='' OR instr(lower(t.title||' '||t.body),lower(?))>0) ORDER BY t.id DESC LIMIT 50").all(before,label,label,query,query)};
+ }
+ feedbackThread(token,p){
+  const user=this.authorize(token),id=feedbackId(p.id),before=p.before?feedbackId(p.before):Number.MAX_SAFE_INTEGER;
+  const post=this.db.prepare("SELECT t.*,CASE WHEN u.role='admin' THEN 'LOSMUNGALS' ELSE u.username END authorName FROM feedback_threads t JOIN users u ON u.id=t.author WHERE t.id=?").get(id);
+  if(!post)fail(404,'Feedback post was deleted or does not exist.');
+  const messages=this.db.prepare("SELECT m.*,CASE WHEN u.role='admin' THEN 'LOSMUNGALS' ELSE u.username END authorName,u.role FROM feedback_messages m JOIN users u ON u.id=m.author WHERE m.threadId=? AND m.id<? ORDER BY m.id DESC LIMIT 50").all(id,before);
+  const images=this.db.prepare('SELECT i.id,i.messageId FROM feedback_images i JOIN feedback_messages m ON m.id=i.messageId WHERE m.threadId=? AND m.id<? AND m.id>=? ORDER BY i.id').all(id,before,messages.at(-1)?.id||before);
+  return {post,canReply:user.role==='admin'||user.id===post.author,messages:messages.reverse().map(m=>({...m,images:images.filter(i=>i.messageId===m.id).map(i=>i.id)}))};
+ }
+ feedbackImage(token,id){this.authorize(token);const image=this.db.prepare('SELECT i.data FROM feedback_images i JOIN feedback_messages m ON m.id=i.messageId JOIN feedback_threads t ON t.id=m.threadId WHERE i.id=?').get(feedbackId(id));if(!image)fail(404,'Image no longer available.');return image;}
+ createFeedback(token,p){
+  const user=this.authorize(token),input=feedbackInput(p,true),now=this.now();
+  if(Number(this.db.prepare('SELECT COUNT(*) n FROM feedback_threads WHERE author=? AND created>?').get(user.id,now-60000).n)>=3)fail(429,'Please wait a minute before creating another post.');
+  this.db.exec('BEGIN IMMEDIATE');
+  try{
+   const result=this.db.prepare('INSERT INTO feedback_threads(title,body,author,created,updated) VALUES(?,?,?,?,?)').run(input.title,input.body,user.id,now,now),id=Number(result.lastInsertRowid);
+   const message=this.db.prepare('INSERT INTO feedback_messages(threadId,author,body,created) VALUES(?,?,?,?)').run(id,user.id,input.body,now);
+   for(const image of input.images)this.db.prepare('INSERT INTO feedback_images(messageId,data) VALUES(?,?)').run(Number(message.lastInsertRowid),image);
+   this.db.exec('COMMIT');return {id};
+  }catch(e){this.db.exec('ROLLBACK');throw e;}
+ }
+ replyFeedback(token,p){
+  const user=this.authorize(token),id=feedbackId(p.id),input=feedbackInput(p),now=this.now();
+  const post=this.db.prepare('SELECT author FROM feedback_threads WHERE id=?').get(id);
+  if(!post)fail(404,'Feedback post was deleted or does not exist.');
+  if(user.role!=='admin'&&user.id!==post.author)fail(403,'Only the post creator and Ember admins can reply.');
+  if(Number(this.db.prepare('SELECT COUNT(*) n FROM feedback_messages WHERE author=? AND created>?').get(user.id,now-60000).n)>=10)fail(429,'Please wait a minute before sending more messages.');
+  this.db.exec('BEGIN IMMEDIATE');
+  try{
+   const message=this.db.prepare('INSERT INTO feedback_messages(threadId,author,body,created) VALUES(?,?,?,?)').run(id,user.id,input.body,now);
+   for(const image of input.images)this.db.prepare('INSERT INTO feedback_images(messageId,data) VALUES(?,?)').run(Number(message.lastInsertRowid),image);
+   this.db.prepare('UPDATE feedback_threads SET updated=? WHERE id=?').run(now,id);
+   this.db.exec('COMMIT');return {ok:true};
+  }catch(e){this.db.exec('ROLLBACK');throw e;}
+ }
+ moderateFeedback(token,p){
+  const user=this.authorize(token,true),id=feedbackId(p.id);
+  if(!this.db.prepare('SELECT id FROM feedback_threads WHERE id=?').get(id))fail(404,'Feedback post was deleted or does not exist.');
+  if(p.action!=='delete'&&(p.action!=='label'||!feedbackLabels.includes(p.label)))fail(400,'Choose a valid feedback label.');
+  this.db.exec('BEGIN IMMEDIATE');
+  try{
+   if(p.action==='delete'){
+    this.db.prepare('DELETE FROM feedback_images WHERE messageId IN (SELECT id FROM feedback_messages WHERE threadId=?)').run(id);
+    this.db.prepare('DELETE FROM feedback_messages WHERE threadId=?').run(id);
+    this.db.prepare('DELETE FROM feedback_threads WHERE id=?').run(id);
+   }else this.db.prepare('UPDATE feedback_threads SET label=?,updated=? WHERE id=?').run(p.label,this.now(),id);
+   this.db.prepare('INSERT INTO audit(actor,action,target,created) VALUES(?,?,?,?)').run(user.id,'feedback:'+p.action,id,this.now());
+   this.db.exec('COMMIT');return {ok:true};
   }catch(e){this.db.exec('ROLLBACK');throw e;}
  }
  latestPost(token){this.authorize(token);return {latest:this.db.prepare('SELECT COALESCE(MAX(id),0) id FROM posts').get().id};}

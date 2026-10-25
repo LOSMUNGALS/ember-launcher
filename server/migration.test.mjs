@@ -13,11 +13,14 @@ test('migration keeps original password hashes and refuses to overwrite a popula
  const local=new Accounts(source,'owner@example.com');let remote;
  try{
   const password='Original-password-fixture-2026';await local.bootstrap(password);const admin=(await local.login({identifier:'owner@example.com',password})).token;local.publish(admin,{body:'Existing announcement'});
+  const image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6h0AAAAASUVORK5CYII=';
+  const feedback=local.createFeedback(admin,{title:'Existing feedback',body:'Original report',images:[image]});
   assert.equal(await exportAccounts(source,file),1);
   const {readFile}=await import('node:fs/promises');const data=JSON.parse(await readFile(file,'utf8'));
   remote=await remoteAccounts({client:createClient({url:pathToFileURL(path.join(root,'hosted.sqlite')).href}),adminEmail:'owner@example.com'});
   assert.equal(await importAccounts(data,remote),1);
   const session=await remote.login({identifier:'owner@example.com',password});assert.equal((await remote.posts(session.token))[0].body,'Existing announcement');
+  const thread=await remote.feedbackThread(session.token,{id:feedback.id});assert.equal(thread.post.title,'Existing feedback');assert.equal((await remote.feedbackImage(session.token,thread.messages[0].images[0])).data,image);
   const hash=await remote.db.prepare('SELECT password FROM users').get();assert.equal(hash.password,local.db.prepare('SELECT password FROM users').get().password);
   await assert.rejects(importAccounts(data,remote),/not empty/);assert.equal((await remote.requests(session.token)).length,1);
   await assert.rejects(remote.authorize(admin),/expired/);

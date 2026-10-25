@@ -145,6 +145,7 @@ export type V2Action =
   | "previewLauncherUpdate"
   | "launcherUpdateStatus" | "checkLauncherUpdate" | "installLauncherUpdate" | "announcementStatus" | "readAnnouncements"
   | "accountStatus" | "accountLogin" | "accountRegister" | "accountForgotPassword" | "accountLogout" | "accountConfigure" | "updates" | "publishUpdate"
+  | "feedbackList" | "feedbackThread" | "feedbackImage" | "createFeedback" | "replyFeedback" | "moderateFeedback"
   | "snapshot"
   | "importSteam"
   | "syncSteam"
