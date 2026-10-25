@@ -31,6 +31,7 @@ export interface CatalogGame {
   updated: string;
 }
 export interface Preferences {
+  resumeDownloads?: boolean;
   region: string;
   concurrency: number;
   minimumPositive: number;
@@ -38,6 +39,8 @@ export interface Preferences {
   catalogUrl: string;
 }
 export interface PackageSource {
+  lastAttempt?: string;
+  lastSuccess?: string;
   localSnapshot?: boolean;
   snapshotOrigin?: string;
   fallbackUrl?: string;
@@ -83,6 +86,11 @@ export type DownloadStatus =
   | "failed"
   | "canceled";
 export interface DownloadJob {
+  installationState?: 'downloaded'|'extracting'|'installing'|'ready'|'needs-attention';
+  installationError?: string;
+  resumeOnStartup?: boolean;
+  retryAt?: string;
+  lastProgress?: string;
   peers?: number;
   discovery?: string;
   outputPath?: string;
@@ -147,6 +155,7 @@ export type V2Action =
   | "launcherUpdateStatus" | "checkLauncherUpdate" | "installLauncherUpdate" | "announcementStatus" | "readAnnouncements"
   | "accountStatus" | "accountLogin" | "accountRegister" | "accountForgotPassword" | "accountLogout" | "accountConfigure" | "updates" | "publishUpdate"
   | "feedbackList" | "feedbackThread" | "feedbackImage" | "createFeedback" | "replyFeedback" | "moderateFeedback"
+  | "repairGame"
   | "snapshot"
   | "importSteam"
   | "syncSteam"

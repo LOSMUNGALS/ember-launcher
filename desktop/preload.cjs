@@ -5,6 +5,7 @@ const actions = new Set([
   "accountForgotPassword",
   "accountStatus", "accountLogin", "accountRegister", "accountLogout", "accountConfigure", "updates", "publishUpdate",
   "feedbackList", "feedbackThread", "feedbackImage", "createFeedback", "replyFeedback", "moderateFeedback",
+  "repairGame",
   "snapshot",
   "importSteam",
   "syncSteam",

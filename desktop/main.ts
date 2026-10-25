@@ -29,6 +29,7 @@ import os from "node:os";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { launchResult, STARTUP_GRACE_MS } from './launch-result';
+import {launchHealth} from './launch-health';
 import { mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
 import { LibraryStore, validateGame } from "./library";
 import { StateStore } from "./state";
@@ -522,7 +523,7 @@ else
                 })
                 .then(changed)
                 .catch(report);
-            if (start && result.message) report(result.message);
+            if (start && result.message){report(result.message);void library.mutate(d=>{const game=d.games.find(g=>g.id===id);if(game)game.lastLaunchError=result.message}).then(changed).catch(report);}
             changed();
           });
         });
@@ -547,6 +548,8 @@ else
         try {
           if (job.package.install.method === "zip") {
             job.status = "extracting";
+            job.installationState='extracting';job.installationError=undefined;
+            await state.save();
             changed();
             const installed = await extractZip(
               downloads.file(job),
@@ -584,6 +587,8 @@ else
                 "Installer extension is not supported on this platform.",
               );
             job.status = "installing";
+            job.installationState='installing';job.installationError=undefined;
+            await state.save();
             changed();
             const error = await shell.openPath(file);
             if (error) throw Error(error);
@@ -604,10 +609,12 @@ else
           }
         } catch (e) {
           job.status = "completed";
-          job.error = "Installation failed: " + String(e);
+          job.installationState='needs-attention';job.installationError="Installation failed: "+String(e);
           throw e;
         } finally {
           installing = false;
+          if(job.installedGameId){job.installationState='ready';job.installationError=undefined;job.error=undefined}
+          else if(job.installationState!=='needs-attention'){job.installationState='needs-attention';job.installationError='Installation has not been confirmed. Locate the installed game or retry installation.'}
           await state.save();
           changed();
         }
@@ -643,7 +650,7 @@ else
             if(file&&!manual){const stamp=await executableStamp(file).catch(()=>undefined);const previous=stableInstalls.get(file);if(stamp)stableInstalls.set(file,stamp);if(!stamp||previous!==stamp)continue;}
             if(!file&&manual){const choice=await dialog.showOpenDialog(win,{title:'Select the installed game executable (not Setup)',properties:['openFile'],defaultPath:roots[0],filters:[{name:'Game executable',extensions:process.platform==='win32'?['exe']:['app']}]});if(!choice.canceled)file=choice.filePaths[0];}
             if(!file)continue;
-            try{const g=await add(file,title,catalogId&&/^\d+$/.test(catalogId)?catalogId:undefined,catalogId?.startsWith('feed-')?catalogId:undefined);if(g){job.installedGameId=g.id;await state.save();changed();}}catch(e){if(manual)throw e;}
+            try{const g=await add(file,title,catalogId&&/^\d+$/.test(catalogId)?catalogId:undefined,catalogId?.startsWith('feed-')?catalogId:undefined);if(g){job.installedGameId=g.id;job.installationState='ready';job.installationError=undefined;await state.save();changed();}}catch(e){if(manual)throw e;}
           }
         }finally{detecting=false;}
       }
@@ -664,7 +671,7 @@ else
       }
       async function action(type: V2Action, p: any = {}) {
         if(type==='accountStatus') { if(accounts.user) await accounts.require().catch(()=>{}); return accounts.status(); }
-        if(type==='accountLogin') return accounts.login(p);
+        if(type==='accountLogin'){const status=await accounts.login(p);await downloads.resumeRecovered();return status;}
         if(type==='accountRegister') return accounts.request('register',p);
         if(type==='accountForgotPassword') return accounts.request('forgot-password',p);
         if(type==='accountLogout') return accounts.logout();
@@ -694,7 +701,7 @@ else
         if(type==='moderateFeedback')return accounts.request('feedback/moderate',p);
         switch (type) {
           case "snapshot": {
-            const sourcesRevision = JSON.stringify(state.data.sources.map(s=>[s.id,s.url,s.updated,s.enabled,s.error,s.packages.length]));
+            const sourcesRevision = JSON.stringify(state.data.sources.map(s=>[s.id,s.url,s.updated,s.enabled,s.error,s.packages.length,s.lastAttempt,s.lastSuccess]));
             return {
               state: {...state.data, sources:p.sourcesRevision===sourcesRevision ? undefined : state.data.sources},
               sourcesRevision,
@@ -835,8 +842,36 @@ else
             });
             return;
           }
-          case "launch":
-            return launch(p.id);
+          case "launch": {
+            try{await launch(p.id);await library.mutate(d=>{const g=d.games.find(g=>g.id===p.id);if(g)g.lastLaunchError=undefined})}
+            catch(e){if(!running.has(p.id))await library.mutate(d=>{const g=d.games.find(g=>g.id===p.id);if(g)g.lastLaunchError=String(e).slice(0,1500)});throw e}
+            return;
+          }
+          case "repairGame": {
+            const game=find(p.id);
+            if(!['diagnose','choose','rescan'].includes(p.action))throw Error('Choose a valid repair action.');
+            if(p.action==='diagnose')return launchHealth(game,nativeTarget);
+            if(running.has(game.id))throw Error('Close this game before changing its executable.');
+            let executable:string|undefined;
+            if(p.action==='rescan'){
+              if(game.store==='steam'){await scan();return launchHealth(find(game.id),nativeTarget)}
+              const records=await installationRecords();
+              const roots=[...(game.executable?[path.dirname(game.executable)]:[]),...(game.managed?[game.managed.directory]:[]),...state.data.downloads.filter(j=>j.installedGameId===game.id).map(j=>torrentDirectory(j)),...records.filter(r=>communityKey(r.name)===communityKey(game.name)).map(r=>r.directory)];
+              const matches=await detectedExecutables(roots,game.name);
+              if(matches.length!==1)throw Error(matches.length?'Several executables found. Choose the game executable.':'No game executable found. Choose its installed executable manually.');
+              executable=matches[0];
+            }else{
+              const selected=await dialog.showOpenDialog(win,{title:'Choose the installed game executable (not its installer)',properties:process.platform==='darwin'?['openFile','openDirectory']:['openFile'],filters:process.platform==='win32'?[{name:'Windows game',extensions:['exe']}]:undefined});
+              if(!selected.canceled)executable=selected.filePaths[0];
+            }
+            if(executable){
+              await nativeTarget(executable);
+              await library.mutate(d=>{const g=d.games.find(g=>g.id===game.id)!;g.executable=executable!;g.installed=true;g.lastLaunchError=undefined});
+              for(const job of state.data.downloads.filter(j=>j.installedGameId===game.id)){job.installationState='ready';job.installationError=undefined}
+              await state.save();
+            }
+            return launchHealth(find(game.id),nativeTarget);
+          }
           case "installSteam": {
             const id = appId(p.id);
             if (!state.data.ownership.ids.includes(id))
@@ -889,6 +924,7 @@ else
               state.data.rankings.nextRefresh = 0;
             }
             state.data.preferences = {
+              resumeDownloads:v.resumeDownloads!==false,
               region: v.region,
               concurrency: v.concurrency,
               minimumPositive: v.minimumPositive,

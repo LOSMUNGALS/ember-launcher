@@ -85,13 +85,13 @@ export async function runTorrent(job: DownloadJob, signal: AbortSignal, changed:
       testOptions?.onTorrent?.(torrent);
       torrent.on('error',(e: string | Error)=>finish(Error(String(e))));
       torrent.on('ready',()=>{clearTimeout(timeout);lastProgress=Date.now();job.total=torrent.length;job.status='downloading';changed();});
-      torrent.on('done',()=>{job.total=torrent.length;job.downloaded=torrent.length;job.status='completed';job.verified=false;finish();});
+      torrent.on('done',()=>{job.total=torrent.length;job.downloaded=torrent.length;job.status='completed';job.installationState='downloaded';job.verified=false;finish();});
       let lastBytes = 0, lastProgress = Date.now(), lastSaved = Date.now();
       timer=setInterval(()=>{
         job.peers = torrent.numPeers;
         job.discovery = torrent.ready ? (torrent.numPeers ? 'Connected to peers' : 'Waiting for peers with available pieces…') : (torrent.numPeers ? 'Connected; requesting torrent metadata…' : 'Searching for peers. Older releases may have no seeders.');
         if (torrent.ready) {
-          if(torrent.downloaded > lastBytes) {lastBytes=torrent.downloaded;lastProgress=Date.now();}
+          if(torrent.downloaded > lastBytes) {lastBytes=torrent.downloaded;lastProgress=Date.now();job.lastProgress=new Date(lastProgress).toISOString();}
           if(Date.now()-lastProgress > 120000) return finish(Error('No download progress for two minutes. Peers may not have the remaining pieces. Retry or choose another release/source; partial files are preserved.'));
           job.downloaded=torrent.downloaded;job.total=torrent.length;job.speed=torrent.downloadSpeed;
           job.averageSpeed=job.speed;job.eta=job.speed>0?(job.total-job.downloaded)/job.speed:undefined;

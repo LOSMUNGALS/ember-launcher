@@ -208,12 +208,13 @@ export function parseSourceFeed(raw: any): {name: string; description: string; p
   return {name,description:"Community feed. Availability and versions are supplied by its publisher.",packages};
 }
 export const defaultSources = (): PackageSource[] => directory.sources.map(row=>({...configuredSource(row.name,row.source_url),id:'default-'+createHash('sha256').update(sourceKey(row.source_url)).digest('hex').slice(0,16)}));
-export async function refreshSource(source: PackageSource) {
+export async function refreshSource(source: PackageSource,loader:typeof loadSource=loadSource) {
   if(source.localSnapshot) return source;
+  const lastAttempt=new Date().toISOString();
   try {
-    const feed = await loadSource(source.url);
-    return {...source,...feed,id:source.id,enabled:source.enabled,snapshotOrigin:undefined,fallbackUrl:undefined,resolvedUrl:source.url,error:undefined};
+    const feed = await loader(source.url);
+    return {...source,...feed,id:source.id,enabled:source.enabled,snapshotOrigin:undefined,fallbackUrl:undefined,resolvedUrl:source.url,error:undefined,lastAttempt,lastSuccess:new Date().toISOString()};
   } catch (error) {
-    return {...source,error:String(error)+(source.packages.length?' Previously loaded catalog retained.':' Import a full catalog JSON file to load releases.')};
+    return {...source,lastAttempt,error:String(error)+(source.packages.length?' Previously loaded catalog retained.':' Import a full catalog JSON file to load releases.')};
   }
 }

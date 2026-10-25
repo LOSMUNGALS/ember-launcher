@@ -47,6 +47,7 @@ export class HostDownloads {
     if(this.closing || this.items.get(job.id)!==item) return;
     try {
     const now=Date.now(),received=item.getReceivedBytes();
+    if(received>job.downloaded)job.lastProgress=new Date(now).toISOString();
     job.downloaded=received;job.total=item.getTotalBytes();job.speed=(received-previous)/Math.max(.001,(now-stamp)/1000);previous=received;stamp=now;
     job.averageSpeed=job.speed;job.eta=job.speed&&job.total?(job.total-received)/job.speed:undefined;
     job.status=item.isPaused()?'paused':item.getState()==='interrupted'?'failed':'downloading';
@@ -57,6 +58,7 @@ export class HostDownloads {
     this.items.delete(job.id);selected=false;job.speed=0;job.eta=undefined;
     try {job.downloaded=item.getReceivedBytes();job.total=item.getTotalBytes()||job.downloaded;} catch { /* Keep the last measured counters if native item is gone. */ }
     job.status=this.closing?'external':status==='completed'?'completed':status==='cancelled'?'canceled':'failed';job.error=status==='interrupted'?'Host transfer interrupted. Retry from the host page.':undefined;job.updated=new Date().toISOString();
+    if(job.status==='completed')job.installationState='downloaded';
     void this.store.save().then(this.changed).catch(()=>{});
    });
    void this.store.save().then(this.changed).catch(()=>{});

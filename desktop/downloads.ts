@@ -11,6 +11,17 @@ export async function hashFile(file: string) {
   for await (const chunk of createReadStream(file)) hash.update(chunk);
   return hash.digest("hex");
 }
+export function recoverDownload(job:DownloadJob){
+ job.speed=0;job.averageSpeed=0;job.eta=undefined;job.retryAt=undefined;
+ if(['extracting','installing'].includes(job.status)){
+  job.status='completed';job.installationState='needs-attention';job.installationError='Ember closed during installation. The downloaded package is preserved. Retry installation or locate the installed game.';job.resumeOnStartup=false;return;
+ }
+ if(job.installedGameId)job.installationState='ready';
+ if(job.status==='completed'){if(job.error?.startsWith('Installation failed:')){job.installationState='needs-attention';job.installationError=job.error;job.error=undefined}job.installationState??='downloaded';return}
+ if(job.package.transport==='host'){if(!['failed','canceled'].includes(job.status)){job.resumeOnStartup=job.status==='downloading'||job.status==='paused';job.status='external'}return}
+ if(['queued','connecting','downloading','verifying'].includes(job.status)){job.resumeOnStartup=true;job.status='paused'}
+}
+export function retryableDownloadError(error:string){return !/SHA-256|disk space|ENOSPC|exceeds|resume response|HTTP (401|403|404|410)|No peers|No download progress for two minutes/i.test(error)&&/HTTP (408|429|5\d\d)|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENET|EAI_AGAIN|connection|network|socket|timed out|incomplete transfer|No download progress/i.test(error)}
 export class DownloadManager {
   private active = new Map<
     string,
@@ -24,6 +35,7 @@ export class DownloadManager {
     private store: StateStore,
     private changed: () => void,
     private client: HttpClient = requestHttps,
+    private options: {idleTimeoutMs?:number;retryDelayMs?:number} = {},
   ) {}
   file(job: DownloadJob, partial = false) {
     return path.join(
@@ -35,18 +47,24 @@ export class DownloadManager {
   async initialize() {
     await mkdir(this.root, { recursive: true });
     for (const j of this.store.data.downloads) {
-      j.speed = 0;
-      j.averageSpeed = 0;
-      j.eta = undefined;
-      if (j.package.transport === "host") { if (!["completed", "canceled"].includes(j.status)) j.status = "external"; continue; }
-      if (j.package.transport) { if (!["completed", "canceled", "failed", "external"].includes(j.status)) j.status = "paused"; continue; }
-      if (!["completed", "canceled", "failed"].includes(j.status))
-        j.status = "paused";
+      recoverDownload(j);
+      if(j.package.transport)continue;
+      // A crash can occur after the final rename but before completion is saved.
+      // Return that file to verification rather than downloading it again.
+      if(j.status==='paused'&&j.resumeOnStartup){
+        const partial=await stat(this.file(j,true)).catch(()=>undefined),finished=await stat(this.file(j)).catch(()=>undefined);
+        if(!partial&&finished?.size===j.total)await rename(this.file(j),this.file(j,true));
+      }
       j.downloaded = await stat(this.file(j, j.status !== "completed"))
         .then((s) => s.size)
         .catch(() => 0);
     }
     await this.store.save();
+  }
+  async resumeRecovered(){
+    if(this.store.data.preferences.resumeDownloads===false)return;
+    for(const job of this.store.data.downloads)if(job.resumeOnStartup&&job.status==='paused'&&job.package.transport!=='host'){job.status='queued';job.resumeOnStartup=false;job.attempts=0;job.error=undefined;}
+    await this.store.save();this.changed();this.pump();
   }
   async enqueue(pkg: GamePackage, sourceId: string, destination: string) {
     if (
@@ -109,8 +127,10 @@ export class DownloadManager {
   }
   private async run(job: DownloadJob, signal: AbortSignal) {
     let file: Awaited<ReturnType<typeof open>> | undefined;
+    let idle:ReturnType<typeof setTimeout>|undefined;
     job.status = "connecting";
     job.error = undefined;
+    job.retryAt=undefined;job.resumeOnStartup=false;
     job.started ??= new Date().toISOString();
     job.attempts++;
     this.changed();
@@ -173,11 +193,14 @@ export class DownloadManager {
             : undefined;
         file = await open(this.file(job, true), offset ? "a" : "w", 0o600);
         job.status = "downloading";
+        job.lastProgress=new Date().toISOString();
+        idle=setTimeout(()=>response.destroy(Error('No download progress for 90 seconds. Connection interrupted; partial files preserved.')),this.options.idleTimeoutMs??90000);idle.unref();
         let sample = Date.now(),
           bytes = 0,
           lastSaved = Date.now();
         this.changed();
         for await (const chunk of response) {
+          idle.refresh();
           if (signal.aborted) throw Error("Interrupted");
           const buffer = Buffer.from(chunk);
           if (job.downloaded + buffer.length > job.total) {
@@ -197,6 +220,7 @@ export class DownloadManager {
           bytes += buffer.length;
           const now = Date.now();
           if (now - sample >= 250) {
+            job.lastProgress=new Date(now).toISOString();
             job.speed = bytes / ((now - sample) / 1000);
             job.averageSpeed = job.averageSpeed
               ? job.averageSpeed * 0.7 + job.speed * 0.3
@@ -234,27 +258,32 @@ export class DownloadManager {
       await rename(this.file(job, true), this.file(job));
       job.verified = true;
       job.status = "completed";
+      job.installationState='downloaded';
       job.error = undefined;
     } catch (e) {
       if (!signal.aborted) {
         job.error = String(e);
         job.status = "failed";
         if (
-          !job.package.transport && job.attempts < 3 &&
-          !/SHA-256|disk space|exceeds|resume response/.test(job.error)
+          job.package.transport!=='host' && job.attempts < 3 &&
+          retryableDownloadError(job.error)
         ) {
           job.status = "queued";
           this.retrying.add(job.id);
+          const delay=this.options.retryDelayMs??1000*2**job.attempts;
+          job.retryAt=new Date(Date.now()+delay).toISOString();
           setTimeout(
             () => {
               this.retrying.delete(job.id);
+              job.retryAt=undefined;
               this.pump();
             },
-            1000 * 2 ** job.attempts,
+            delay,
           );
         }
       }
     } finally {
+      clearTimeout(idle);
       await file?.close().catch(() => {});
       job.speed = 0;
       job.eta = undefined;
@@ -269,6 +298,7 @@ export class DownloadManager {
     if (["extracting", "installing"].includes(job.status))
       throw Error("Wait for installation to finish.");
     if (action === "pause" || action === "cancel") {
+      job.resumeOnStartup=false;job.retryAt=undefined;
       if (job.status === "completed")
         throw Error("Completed downloads cannot be paused or canceled.");
       job.status = action === "pause" ? "paused" : "canceled";
@@ -282,6 +312,7 @@ export class DownloadManager {
       if (!["paused", "failed", "canceled"].includes(job.status))
         throw Error("This download cannot be resumed.");
       job.status = "queued";
+      job.resumeOnStartup=false;job.retryAt=undefined;
       job.attempts = 0;
       job.error = undefined;
     } else if (action === "top") {
@@ -311,7 +342,7 @@ export class DownloadManager {
   async pauseForUpdate() {
     this.suspended=true;
     try{
-      for(const job of this.store.data.downloads)if(job.package.transport!=='host'&&['queued','connecting','downloading','verifying'].includes(job.status))job.status='paused';
+      for(const job of this.store.data.downloads)if(job.package.transport!=='host'&&['queued','connecting','downloading','verifying'].includes(job.status)){job.status='paused';job.resumeOnStartup=true;}
       const tasks=[...this.active.values()];for(const task of tasks)task.abort.abort();
       await Promise.all(tasks.map(task=>task.promise));
       await this.store.save();this.changed();
@@ -323,7 +354,7 @@ export class DownloadManager {
       [...this.active.entries()].map(([id, task]) => {
         const job = this.store.data.downloads.find(j => j.id === id);
         // Completion can be persisted before the active task's cleanup runs.
-        return job?.status === "completed" ? task.promise : this.control(id, "pause");
+        return job?.status === "completed" ? task.promise : this.control(id, "pause").then(async()=>{if(job){job.resumeOnStartup=true;await this.store.save()}});
       }),
     );
   }

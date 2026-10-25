@@ -26,6 +26,7 @@ export interface SteamDashboard {
   errors?: string[];
 }
 export interface Game {
+  lastLaunchError?: string;
   catalogId?: string;
   unavailable?: boolean;
   lastLaunchRequested?: string;

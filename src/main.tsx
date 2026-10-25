@@ -2,6 +2,8 @@ import { Trailer } from './Trailer';
 import {AccountGate, type AccountUser} from './AccountGate';
 import {Updates} from './Updates';
 import {Feedback} from './Feedback';
+import {GameRepair} from './GameRepair';
+import {downloadStage,downloadAdvice} from './download-health';
 import {LauncherUpdateDialog} from './LauncherUpdateDialog';
 import { SourcePicker, SourceSettings } from "./DownloadSources";
 import { InfiniteLoader } from './InfiniteLoader';
@@ -61,6 +63,7 @@ const playLabel = (g: Game) =>
     ? "Unavailable"
     : hours(playedSeconds(g));
 function App({user,logout}:{user:AccountUser;logout:()=>void}) {
+  const [repair,setRepair]=useState<{id:string;name:string}>();
   const catalogRequest=useRef(0);
   const [updateDialog,setUpdateDialog]=useState(false),[unreadUpdates,setUnreadUpdates]=useState(false),[updatesVisit,setUpdatesVisit]=useState(0);
   const announcementsRequest=useRef(0);
@@ -299,7 +302,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
       {g?.store==='steam' && g.steamId && g.owned && !g.installed && !m?.comingSoon && <button disabled={!native(m,g)} onClick={()=>void call("installSteam",{id:g.steamId})}>Install in Steam</button>}
       {!native(m,g)&&<small>{officialSourceDownload?'Downloads available from enabled sources · game compatibility is unverified.':'Unavailable on this platform · native games only'}</small>}
     </div>{job&&<button className="game-download-progress" onClick={()=>navigate("Downloads")} aria-label="View game download">
-      <span>{job.status === "external" ? "Continue on download host" : job.status + (job.total>0?" · "+Math.min(100,job.downloaded/job.total*100).toFixed(1)+"%":" · waiting for metadata")} →</span>
+      <span>{downloadStage(job).label}{job.status!=='completed'&&job.total>0?' · '+Math.min(100,job.downloaded/job.total*100).toFixed(1)+'%':''} →</span>
       {job.status !== "external"&&<progress max={job.total||1} value={job.total?job.downloaded:undefined}/>}
     </button>}</>;
   }
@@ -701,6 +704,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
               </div>
               {game && (
                 <div className="actions management">
+                  <button onClick={()=>setRepair({id:game.id,name:game.name})}>Fix this game</button>
                   {game.installed && (
                     <button
                       onClick={() => void call("reveal", { id: game.id })}
@@ -1131,8 +1135,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
                       </small>
                     </div>
                     <span className="pill">
-                      {j.status}
-                      {j.installedGameId ? " · Installed" : ""}
+                      {downloadStage(j).label}
                     </span>
                   </div>
                   {j.status !== "external" && <progress value={j.total ? j.downloaded : undefined} max={j.total || 1} />}
@@ -1151,11 +1154,19 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
                         : "—"}
                     </span>
                   </div>
+                  <ol className="installation-stages" aria-label="Installation progress">{['Download','Extract / install','Ready to play'].map((stage,i)=><li key={stage} className={downloadStage(j).step>i?'complete':''}>{stage}</li>)}</ol>
+                  {downloadStage(j).detail&&<p className="muted">{downloadStage(j).detail}</p>}
                   {j.error && <p role="alert">{j.error}</p>}
+                  {downloadAdvice(j)&&<p className="muted">{downloadAdvice(j)}</p>}
+                  {j.retryAt&&<small>Next retry: {new Date(j.retryAt).toLocaleTimeString()} · attempt {j.attempts}/3</small>}
+                  {j.lastProgress&&<small>Last received data: {new Date(j.lastProgress).toLocaleString()}</small>}
                   {j.package.transport === "torrent" && ["connecting", "downloading"].includes(j.status) && <p role="status">{j.peers ?? 0} connected peers · {j.discovery || "Starting peer discovery…"}</p>}
                   {j.package.transport && <p className="muted">{j.package.transport === "host" ? "Complete the host page steps in the Ember download window. Progress appears once the file transfer starts." : "Torrent pieces are verified against the magnet hash. Finished files are not automatically installed; paused/canceled files remain in the download folder."}</p>}
                   {j.package.transport && <button onClick={()=>void call("openDownload",{id:j.id})}>{j.package.transport === "host" && j.status !== "completed" ? "Open download host" : "Open download folder"}</button>}
                   <div className="actions">
+                    {j.installedGameId&&<><button className="primary" onClick={()=>void call('launch',{id:j.installedGameId})}>▶ Play</button><button onClick={()=>setRepair({id:j.installedGameId!,name:j.package.title})}>Fix this game</button></>}
+                    {j.status==='completed'&&!j.installedGameId&&<button onClick={()=>void call('detectInstall',{id:j.id})}>Locate installed game</button>}
+                    {j.status==='failed'&&<button onClick={()=>navigate('Settings')}>Check download sources</button>}
                     {[
                       "queued",
                       "connecting",
@@ -1273,10 +1284,11 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
           {snap.message && !snap.busy && <span>{snap.message}</span>}
         </footer>
       </main>
-      {sources && <SourcePicker sources={state.sources} appId={selectedMeta?.origin?undefined:game?.steamId || selectedMeta?.steamAppId || selectedMeta?.appId} title={selectedMeta?.title || game?.name || "Game"} platform={snap.platform} onClose={()=>setSources(false)} onManage={()=>{setSources(false);navigate("Settings")}} onRefresh={async()=>{await call("syncSources")}} onChoose={async(s,p)=>{
+      {sources && <SourcePicker onReport={()=>{setSources(false);navigate("Feedback")}} sources={state.sources} appId={selectedMeta?.origin?undefined:game?.steamId || selectedMeta?.steamAppId || selectedMeta?.appId} title={selectedMeta?.title || game?.name || "Game"} platform={snap.platform} onClose={()=>setSources(false)} onManage={()=>{setSources(false);navigate("Settings")}} onRefresh={async()=>{await call("syncSources")}} onChoose={async(s,p)=>{
         const id=await call("download",{sourceId:s.id,packageId:p.id,appId:game?.steamId||selectedMeta?.steamAppId||selectedMeta?.appId});
         if(id){setSources(false);if(p.transport==='host')await call("openDownload",{id});}
       }}/>}
+      {repair&&<GameRepair id={repair.id} name={repair.name} onClose={()=>setRepair(undefined)}/>}
       {edit && (
         <div className="modal-backdrop">
           <form
@@ -1477,6 +1489,7 @@ function Settings({
           Low-review games remain eligible. Adult titles and entries without
           content classifications are included. Review filters still apply.
         </p>
+        <label><input type="checkbox" checked={prefs.resumeDownloads!==false} onChange={e=>setPrefs({...prefs,resumeDownloads:e.target.checked})}/> Resume interrupted direct and torrent downloads after login. Downloads paused by you stay paused; host downloads require reopening their host page.</label>
         <button className="primary">Save preferences</button>
       </form>
       <SourceSettings sources={snap.state.sources} call={call}/>
