@@ -5,7 +5,7 @@ import {sourceDiagnostics} from './download-health';
 export function SourcePicker({sources,appId,title,platform,onClose,onChoose,onManage,onRefresh,onReport}: {sources:PackageSource[];appId?:string;title:string;platform:string;onClose:()=>void;onChoose:(s:PackageSource,p:GamePackage)=>Promise<void>;onManage:()=>void;onRefresh:()=>Promise<void>;onReport?:()=>void}) {
  const dialog=useRef<HTMLDialogElement>(null);
  const [search,setSearch]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
- useEffect(()=>{dialog.current?.showModal()},[]);
+ useEffect(()=>{const modal=dialog.current;modal?.showModal();return()=>{if(modal?.open)modal.close()}},[]);
  const options=useMemo(()=>downloadOptions(sources,appId,title,platform),[sources,appId,title,platform]);
  const rows=options.filter(({p})=>p.title.toLowerCase().includes(search.toLowerCase()));
  const act=async(fn:()=>Promise<void>)=>{setBusy(true);setError('');try{await fn()}catch(e){setError(String(e))}finally{setBusy(false)}};

@@ -33,6 +33,7 @@ const bytes = Buffer.from("isolated package fixture"),
   pkg = {
     id: "fixture",
     gameId: "fixture",
+    steamAppId: "10",
     title: "Downloaded fixture",
     version: "1",
     type: "archive",
@@ -109,7 +110,15 @@ const app = await electron.launch({
 page.on("pageerror", (e) => failures.push(e.message));
 try {
   await page.locator(".v2-app").waitFor();
+  await page.route(/https:\/\/[^/]*steamstatic\.com\//,route=>route.abort());
   await page.getByTitle("Downloads", { exact: true }).click();
+  await page.locator('.download-thumbnail .cover-fallback').first().waitFor();
+  const thumbnail=await page.locator('.download-thumbnail').first().boundingBox();
+  assert.ok(thumbnail&&thumbnail.width<=102&&thumbnail.height<=60,'Download thumbnail must remain bounded when artwork fails.');
+  const fallback=await page.locator('.download-thumbnail .cover-fallback').first().boundingBox();
+  assert.ok(fallback&&fallback.width<=102&&fallback.height<=60,'Failed-artwork fallback must stay inside the thumbnail.');
+  await page.getByRole('button',{name:'Pause all',exact:true}).click();
+  await page.getByRole('button',{name:'Resume all',exact:true}).click();
   await page.getByText("Downloaded · not installed", { exact: true }).waitFor();
   await page
     .getByText("Installation needs attention", { exact: true })

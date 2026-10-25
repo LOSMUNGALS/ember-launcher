@@ -805,13 +805,33 @@ button:focus-visible {
   opacity: 1;
 }
 .download-thumbnail {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   width: 100px;
+  height: 56px;
   aspect-ratio: 16/9;
   object-fit: cover;
   border-radius: 12px;
 }
 .download-card .section-heading > div {
   flex: 1;
+}
+.download-card .section-heading > .download-thumbnail {
+  flex: 0 0 100px;
+}
+.download-thumbnail .cover-fallback {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  font-size: 10px !important;
+  line-height: 1.2;
+  overflow: hidden;
+  pointer-events: none;
+}
+.download-thumbnail img {
+  pointer-events: none;
 }
 /* Card actions must stay in their own flow, never use the legacy absolute overlay. */
 .v2-card .card-play {
