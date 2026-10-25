@@ -164,7 +164,7 @@ export type V2Action =
   | "accountStatus" | "accountLogin" | "accountRegister" | "accountForgotPassword" | "accountLogout" | "accountConfigure" | "updates" | "publishUpdate"
   | "feedbackList" | "feedbackThread" | "feedbackImage" | "createFeedback" | "replyFeedback" | "moderateFeedback"
   | "repairGame"
-  | "organizeGame" | "gameArtwork" | "storage" | "moveGame" | "backupSaves" | "rememberSearch"
+  | "cloudLibrary" | "organizeGame" | "gameArtwork" | "storage" | "moveGame" | "backupSaves" | "rememberSearch"
   | "snapshot"
   | "importSteam"
   | "syncSteam"

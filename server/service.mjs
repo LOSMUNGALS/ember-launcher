@@ -1,3 +1,4 @@
+import {cloudEntries} from './cloud-library.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {randomBytes, scrypt as derive, timingSafeEqual, createHash} from 'node:crypto';
 import {promisify} from 'node:util';
@@ -38,6 +39,7 @@ export class Accounts {
  constructor(file,adminEmail,now=()=>Date.now()){
   this.now=now;this.adminEmail=adminEmail.trim().toLowerCase();this.db=new DatabaseSync(file);
   this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
+   CREATE TABLE IF NOT EXISTS cloud_libraries(userId INTEGER PRIMARY KEY REFERENCES users(id),entries TEXT NOT NULL,updated INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,email TEXT UNIQUE COLLATE NOCASE,username TEXT UNIQUE COLLATE NOCASE,password TEXT NOT NULL,status TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'user',retryAt INTEGER NOT NULL DEFAULT 0,created INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,userId INTEGER REFERENCES users(id),expires INTEGER);
    CREATE TABLE IF NOT EXISTS password_resets(token TEXT PRIMARY KEY,userId INTEGER REFERENCES users(id),expires INTEGER NOT NULL);
@@ -49,6 +51,13 @@ export class Accounts {
    CREATE TABLE IF NOT EXISTS feedback_images(id INTEGER PRIMARY KEY AUTOINCREMENT,messageId INTEGER NOT NULL REFERENCES feedback_messages(id),data TEXT NOT NULL);
    CREATE INDEX IF NOT EXISTS feedback_message_thread ON feedback_messages(threadId,id);
    CREATE INDEX IF NOT EXISTS feedback_image_message ON feedback_images(messageId);`);
+ }
+ cloudLibrary(token,p){
+ const user=this.authorize(token);
+ if(p!==undefined){let entries;try{entries=cloudEntries(p.entries)}catch(e){fail(400,e.message)}
+ this.db.prepare('INSERT INTO cloud_libraries(userId,entries,updated) VALUES(?,?,?) ON CONFLICT(userId) DO UPDATE SET entries=excluded.entries,updated=excluded.updated').run(user.id,JSON.stringify(entries),this.now());}
+ const row=this.db.prepare('SELECT entries,updated FROM cloud_libraries WHERE userId=?').get(user.id);
+ return {entries:row?JSON.parse(row.entries):[],updated:row?.updated||0};
  }
  setupNeeded(){return !this.db.prepare("SELECT id FROM users WHERE role='admin'").get();}
  async bootstrap(password){

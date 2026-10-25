@@ -1,3 +1,4 @@
+import {CloudLibrary} from './CloudLibrary';
 import { Trailer } from './Trailer';
 import {AccountGate, type AccountUser} from './AccountGate';
 import {Updates} from './Updates';
@@ -1516,7 +1517,7 @@ function Settings({
         <button className="primary">Save preferences</button>
       </form>
       <SourceSettings sources={snap.state.sources} call={call}/>
-      <StorageManager/>
+      <CloudLibrary/><StorageManager/>
       {snap.launcherUpdate&&<section className="settings-panel"><h2>Launcher updates</h2><p>Installed version: {snap.launcherUpdate.currentVersion}</p><p>{snap.launcherUpdate.supported?'Ember checks for published releases at startup and every 15 minutes.':snap.launcherUpdate.reason}</p>{snap.launcherUpdate.error&&<p role="alert">{snap.launcherUpdate.error}</p>}<button disabled={!snap.launcherUpdate.supported||['checking','downloading','downloaded','installing'].includes(snap.launcherUpdate.phase)} onClick={()=>void call('checkLauncherUpdate')}>{snap.launcherUpdate.phase==='checking'?'Checking…':'Check for launcher updates'}</button></section>}
       <section className="settings-panel">
         <h2>Platform & storage</h2>

@@ -6,7 +6,7 @@ const actions = new Set([
   "accountStatus", "accountLogin", "accountRegister", "accountLogout", "accountConfigure", "updates", "publishUpdate",
   "feedbackList", "feedbackThread", "feedbackImage", "createFeedback", "replyFeedback", "moderateFeedback",
   "repairGame",
-  "organizeGame", "gameArtwork", "storage", "moveGame", "backupSaves", "rememberSearch",
+  "cloudLibrary", "organizeGame", "gameArtwork", "storage", "moveGame", "backupSaves", "rememberSearch",
   "snapshot",
   "importSteam",
   "syncSteam",
@@ -49,3 +49,4 @@ contextBridge.exposeInMainWorld("ember2", {
     return () => ipcRenderer.removeListener("changed", listener);
   },
 });
+

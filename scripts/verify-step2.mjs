@@ -246,6 +246,16 @@ try {
     await readFile(path.join(backup.directory, "save.dat"), "utf8"),
     "save fixture",
   );
+  await app.evaluate(({dialog})=>{dialog.showMessageBox=async()=>({response:1,checkboxChecked:false})});
+  await page.evaluate(()=>window.ember2.call('organizeGame',{id:'library-fixture',favorite:true,collections:['Cloud fixture'],playStatus:'playing'}));
+  const cloudBackup=await page.evaluate(()=>window.ember2.call('cloudLibrary',{mode:'upload'}));
+  assert.match(cloudBackup.message,/Backed up/);
+  await page.evaluate(()=>window.ember2.call('organizeGame',{id:'library-fixture',favorite:false,collections:[],playStatus:'backlog'}));
+  const cloudRestore=await page.evaluate(()=>window.ember2.call('cloudLibrary',{mode:'restore'}));
+  assert.match(cloudRestore.message,/Restored/);
+  const restoredLibrary=JSON.parse(await readFile(path.join(userData,'library.json'),'utf8'));
+  assert.equal(restoredLibrary.games.find(g=>g.id==='library-fixture').favorite,true);
+  assert.deepEqual(restoredLibrary.games.find(g=>g.id==='library-fixture').collections,['Cloud fixture']);
   await page.evaluate(() => window.ember2.call("accountLogout"));
   await app.close();
   await launch();

@@ -1,3 +1,4 @@
+import {cloudGames,restoreCloud} from './cloud-library';
 import { HostDownloads } from "./host-downloads";
 import {AccountClient} from './accounts';
 import {LauncherUpdates} from './launcher-updates';
@@ -20,6 +21,7 @@ import {
   net,
   nativeImage,
   safeStorage,
+  screen,
   Tray,
   Menu,
 } from "electron";
@@ -703,7 +705,18 @@ else
         if(type==='replyFeedback')return accounts.request('feedback/reply',p);
         if(type==='moderateFeedback')return accounts.request('feedback/moderate',p);
         switch (type) {
-          case 'rememberSearch': {
+          case 'cloudLibrary': {
+ await accounts.require(true);
+ if(!['upload','restore'].includes(p.mode))throw Error('Choose backup or restore.');
+ const choice=await dialog.showMessageBox(win,{type:'question',buttons:['Cancel',p.mode==='upload'?'Back up':'Restore'],defaultId:0,cancelId:0,message:p.mode==='upload'?'Replace this account’s cloud backup with this computer’s library preferences?':'Merge cloud preferences? Matching games will use cloud favorites, collections and play status.'});
+ if(choice.response!==1)return {message:'Canceled.'};
+ const identity=accounts.url+':'+accounts.user!.id;
+ const result=await accounts.request('library',p.mode==='upload'?{entries:cloudGames(library.data.games)}:undefined);
+ if(identity!==accounts.url+':'+accounts.user?.id)throw Error('Account changed. Try again.');
+ if(p.mode==='restore')await library.mutate(d=>restoreCloud(d.games,result.entries));
+ return {message:result.updated?(p.mode==='upload'?'Backed up ':'Restored ')+result.entries.length+' games. Backup date: '+new Date(result.updated).toLocaleString():'No cloud backup exists yet.'};
+ }
+ case 'rememberSearch': {
             const query=String(p.query||'').trim().slice(0,150);if(query){state.data.recentSearches=[query,...(state.data.recentSearches||[]).filter(q=>q.toLowerCase()!==query.toLowerCase())].slice(0,12);await state.save()}return;
           }
           case 'organizeGame': {
@@ -1210,8 +1223,8 @@ else
         win = new BrowserWindow({
           width: 1400,
           height: 920,
-          minWidth: 980,
-          minHeight: 680,
+          minWidth: 720,
+          minHeight: 540,
           backgroundColor: "#151b1d",
           title: "Ember",
           icon: path.join(__dirname, "ui/launcher.png"),
@@ -1223,6 +1236,14 @@ else
             sandbox: true,
           },
         });
+        const fitDisplay=()=>{
+          if(win.isDestroyed()||win.webContents.isDestroyed())return;
+          const display=screen.getDisplayMatching(win.getBounds());
+          const width=Math.min(win.getContentBounds().width,display.workAreaSize.width);
+          win.webContents.setZoomFactor(Math.max(1,Math.min(1.6,width/1920)));
+        };
+        win.on('resize',fitDisplay);win.on('move',fitDisplay);
+        win.webContents.on('did-finish-load',fitDisplay);
         win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
         win.webContents.on("will-navigate", (e) => e.preventDefault());
         void win.loadFile(path.join(__dirname, "ui/index.html"));

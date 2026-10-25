@@ -3,7 +3,7 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {remoteAccounts} from './remote.mjs';
 // Sessions and reset tokens deliberately do not migrate: users log in again.
 const legacyTables=['users','posts','launcher_releases','audit'];
-const tables=[...legacyTables,'feedback_threads','feedback_messages','feedback_images'];
+const tables=[...legacyTables,'feedback_threads','feedback_messages','feedback_images','cloud_libraries'];
 export async function exportAccounts(source,destination){
  const db=new DatabaseSync(source,{readOnly:true});
  try{db.exec('BEGIN');const data={format:'ember-accounts-v1',tables:{}};for(const name of tables){const exists=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(name);data.tables[name]=exists?db.prepare(`SELECT * FROM ${name}`).all():[];}db.exec('COMMIT');await writeFile(destination,JSON.stringify(data),{flag:'wx',mode:0o600});return data.tables.users.length;}

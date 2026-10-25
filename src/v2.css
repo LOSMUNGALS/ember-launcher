@@ -880,3 +880,17 @@ html:has(.download-picker[open]){overflow:hidden}
 .password-field{display:block;position:relative}.account-card .password-field input{padding-right:54px}.account-card .password-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;padding:8px;margin:0;background:transparent;border:0;color:#b7c8c8;min-width:36px}.password-eye:focus-visible{outline:2px solid #f5b486;outline-offset:2px}.account-card .forgot-password{display:block;margin:12px 0 0 auto;background:transparent;border:0;color:#f5b486;padding:6px}
 .sidebar-bottom>button{position:relative}.updates-unread{display:inline-block;width:10px;height:10px;margin-left:10px;border-radius:50%;background:#f04452;box-shadow:0 0 0 3px #f0445220;vertical-align:middle}.launcher-update-available{border-color:#f5b486;color:#f5b486;white-space:nowrap}.launcher-update-dialog{color:#edf4f1;background:#172124;border:1px solid #ffffff26;border-radius:24px;width:min(680px,calc(100vw - 64px));max-height:80vh;padding:30px;overflow:auto;box-shadow:0 24px 90px #0008}.launcher-update-dialog::backdrop{background:#081011bb;backdrop-filter:blur(6px)}.launcher-update-dialog header{display:flex;gap:20px;align-items:flex-start;justify-content:space-between}.launcher-update-dialog h2{margin:0;font-size:23px}.launcher-update-dialog p{line-height:1.6}.launcher-release-notes{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;padding:20px 0;border-bottom:1px solid #ffffff18}.launcher-update-dialog progress{width:80%}
 .installation-stages{display:flex;list-style:none;gap:12px;padding:0;flex-wrap:wrap}.installation-stages li{border:1px solid #ffffff24;border-radius:20px;padding:8px 14px;color:#a6b6b6}.installation-stages li.complete{border-color:#eeb58a;color:#f4be94}.game-repair code{overflow-wrap:anywhere}.game-repair .actions{flex-wrap:wrap}.source-diagnostics{padding:12px 0;color:#a5bbbb;font-size:.85rem}
+/* Keep physical-pixel density from making the UI tiny on large desktops. */
+.account-screen{box-sizing:border-box;min-height:100dvh;justify-content:center;padding:clamp(24px,5vh,64px) 24px}
+.account-card{flex-shrink:0}.account-brand{flex-shrink:0}
+.v2-main,.v2-content,.settings-panel{min-width:0}
+.v2-sidebar{overflow-y:auto;max-height:100dvh}
+.v2-card,.settings-panel{overflow-wrap:anywhere}
+@media(max-width:900px){
+ .v2-app{grid-template-columns:180px minmax(0,1fr)}
+ .stat-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .game-collection:not(.list){grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+ .filter-row,.actions{flex-wrap:wrap}
+}
+@media(max-height:720px){.account-screen{justify-content:flex-start;padding-top:24px}.account-brand{margin-bottom:16px}.account-brand img{width:54px;height:54px}.account-brand h1{font-size:42px}.account-card{padding:24px}}
+@media(max-width:600px){.v2-app,.v2-app.compact{grid-template-columns:76px minmax(0,1fr)}.account-card{padding:24px}.account-brand h1{font-size:44px}.stat-strip{grid-template-columns:1fr}}
