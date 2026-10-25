@@ -39,7 +39,7 @@ test('old blank community caches retry and metadata failure retains a verified S
  const result=await service.communityDetail(entry.appId);
  assert.equal(searches,1);assert.equal(result.appId,'327410');assert.ok(result.cover);assert.equal(result.origin,undefined);
 });
-test('Coming Soon pagination and Top Sellers use supplied snapshots rather than live chart requests',async()=>{
+test('Coming Soon pagination and Top Sellers retain supplied snapshots when offline',async()=>{
  const store=new StateStore('unused');store.save=async()=>{};
  const service=new CatalogService(store,async()=>{throw Error('offline');});
  const ids:string[]=[];

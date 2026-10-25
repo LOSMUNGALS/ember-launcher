@@ -102,7 +102,6 @@ else
       // Index every enabled local catalog before exposing the launcher UI.
       // Store metadata and network availability must not determine inclusion.
       catalog.community();
-      if(!process.env.EMBER_DATA_DIR)await catalog.refreshRankings();
       let busy = false,
         updating = false,
         message = "",
@@ -781,8 +780,8 @@ else
             changed(); return;
           }
           case "rankings": {
-            if (p.refresh || !state.data.rankings.source.startsWith('Supplied SteamDB') || Date.now() >= state.data.rankings.nextRefresh)
-              await catalog.refreshRankings();
+            if (p.refresh || !state.data.rankings.ids.length || Date.now() >= state.data.rankings.nextRefresh)
+              await catalog.refreshRankings(Boolean(p.refresh));
             const ids = state.data.rankings.ids.slice(
               p.offset || 0,
               (p.offset || 0) + 20,
@@ -1163,6 +1162,7 @@ else
         });
       }
       createWindow();
+      if(!process.env.EMBER_DATA_DIR)void catalog.refreshRankings(true).then(changed).catch(report);
       if(updaterSupported){void launcherUpdates.check();const updatePoll=setInterval(()=>void launcherUpdates.check(),15*60000);updatePoll.unref();}
       if(!process.env.EMBER_DATA_DIR || process.env.EMBER_ENABLE_TRAY==='1'){
         tray=new Tray(nativeImage.createFromPath(path.join(__dirname,'ui/launcher.png')).resize({width:32,height:32}));

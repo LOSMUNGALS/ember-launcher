@@ -107,6 +107,7 @@ export interface DownloadJob {
   installedGameId?: string;
 }
 export interface V2State {
+  charts?: Partial<Record<'coming'|'top', {games:CatalogGame[];source:string;updated:string;nextRefresh:number;region:string;error?:string}>>;
   defaultSourcesVersion?: number;
   preferences: Preferences;
   sources: PackageSource[];

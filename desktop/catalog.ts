@@ -1,4 +1,5 @@
 import {chartSnapshot,chartSource} from './chart-snapshots';
+import {LiveCharts} from './live-charts';
 import {lookupTitle,matchSteamTitle} from './title-match';
 import {steamPortrait} from './store-assets';
 import { jsonHttps, requestHttps } from "./http";
@@ -134,12 +135,13 @@ export function recommendationScore(
   );
 }
 export class CatalogService {
+  private charts:LiveCharts;
   private chartEntries=[...chartSnapshot('coming'),...chartSnapshot('top')];
   async chartDetail(id:string,full=false):Promise<CatalogGame> {
     const entry=this.chartEntries.find(g=>g.appId===id);if(!entry)throw Error('Chart entry not found.');
     const old=this.store.data.catalog[id];
     if(!full && entry.portrait && !old?.artworkVersion){const seeded={...entry,...old,portrait:old?.portrait||entry.portrait,artworkVersion:2,updated:new Date().toISOString()};this.store.data.catalog[id]=seeded;return seeded;}
-    if(!full&&old?.artworkVersion===2&&Date.now()-Date.parse(old.updated)<86400000)return old;
+    if(!full&&old?.artworkVersion===2&&Date.now()-Date.parse(old.updated)<86400000){const result={...old,chartRank:entry.chartRank,discoveryList:entry.discoveryList};this.store.data.catalog[id]=result;return result;}
     let steamId=old?.steamAppId||entry.steamAppId;
     let cover=old?.cover||entry.cover;
     try{
@@ -148,7 +150,7 @@ export class CatalogService {
         const raw=await this.readJson('https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json='+encodeURIComponent(JSON.stringify({ids:[{appid:Number(steamId)}],context:{language:'english',country_code:this.store.data.preferences.region},data_request:{include_assets:true}})));
         const portrait=steamPortrait(steamId,raw);
         const meta=full?await this.detail(steamId).catch(()=>this.store.data.catalog[steamId!]):this.store.data.catalog[steamId];
-        const result:CatalogGame={...entry,...meta,appId:id,steamAppId:steamId,origin:undefined,chartRank:entry.chartRank,productType:entry.productType,discoveryList:entry.discoveryList,comingSoon:entry.comingSoon,portrait:portrait||meta?.portrait||entry.portrait,cover:meta?.cover||cover,purchaseUrl:entry.productType==='game'?undefined:`https://store.steampowered.com/app/${steamId}/`,updated:new Date().toISOString(),artworkVersion:portrait?2:undefined};
+        const result:CatalogGame={...entry,...meta,appId:id,steamAppId:steamId,origin:undefined,chartRank:entry.chartRank,productType:entry.productType,discoveryList:entry.discoveryList,comingSoon:entry.discoveryList==='coming'?(meta?.comingSoon??entry.comingSoon):entry.comingSoon,portrait:portrait||meta?.portrait||entry.portrait,cover:meta?.cover||cover,purchaseUrl:entry.productType==='game'?undefined:`https://store.steampowered.com/app/${steamId}/`,updated:new Date().toISOString(),artworkVersion:portrait?2:undefined};
         this.store.data.catalog[id]=result;return result;
       }
     }catch{/* Preserve verified IDs and bundled artwork on transient failures. */}
@@ -156,7 +158,6 @@ export class CatalogService {
   }
   private sourceIndex: CatalogGame[]=[];
   private sourceRevision='';
-  private wishlist?: {ids:string[];source:string;time:number};
   community() {
     const revision=JSON.stringify(this.store.data.sources.map(s=>[s.id,s.enabled,s.updated,s.packages.length]));
     if(revision!==this.sourceRevision){this.sourceIndex=communityCatalog(this.store.data.sources);this.sourceRevision=revision;this.communityChecked.clear();}
@@ -196,7 +197,18 @@ export class CatalogService {
     this.store.data.catalog[id]=entry;return entry;
   }
   private pending = new Map<string, Promise<CatalogGame>>();
-  constructor(private store: StateStore, private readJson:typeof jsonHttps=jsonHttps) {}
+  constructor(private store: StateStore, private readJson:typeof jsonHttps=jsonHttps) {this.charts=new LiveCharts(store,readJson);this.applyCharts();}
+  private applyCharts(){
+    this.chartEntries=[...this.charts.current('coming').games,...this.charts.current('top').games];
+    for(const kind of ['coming','top'] as const){
+      const ids=new Set(this.chartEntries.filter(g=>g.discoveryList===kind).map(g=>g.steamAppId||g.appId));
+      for(const game of Object.values(this.store.data.catalog))if(game.discoveryList===kind&&!ids.has(game.steamAppId||game.appId))game.discoveryList=undefined;
+    }
+    for(const entry of this.chartEntries)if(!this.store.data.catalog[entry.appId])this.store.data.catalog[entry.appId]=entry;
+    const top=this.charts.current('top'),coming=this.charts.current('coming'),entries=top.games,ranks=this.store.data.rankings;
+    ranks.ids=entries.map(g=>g.appId);ranks.positions=Object.fromEntries(entries.map(g=>[g.appId,g.chartRank!]));ranks.source=top.source;ranks.region=top.source.startsWith('Live Steam')?top.region:'Global';ranks.updated=top.updated;ranks.nextRefresh=Math.min(top.nextRefresh,coming.nextRefresh);ranks.error=top.error;
+  }
+  async refreshCharts(force=false){await Promise.all([this.charts.refresh('coming',force),this.charts.refresh('top',force)]);this.applyCharts();await this.store.save();}
   async detail(id: string, force = false, persist = true): Promise<CatalogGame> {
     appId(id);
     const old = this.store.data.catalog[id];
@@ -240,10 +252,12 @@ export class CatalogService {
       throw Error("Invalid catalog query.");
     const preferences = this.store.data.preferences;
     if(kind==='coming'&&!preferences.catalogUrl){
+      await this.refreshCharts();
       const rows=this.chartEntries.filter(g=>g.discoveryList==='coming'&&g.title.toLowerCase().includes(term.toLowerCase()));
       const games:CatalogGame[]=[];
       for(let i=page*24;i<Math.min(rows.length,(page+1)*24);i+=4)games.push(...await Promise.all(rows.slice(i,Math.min(i+4,(page+1)*24)).map(g=>this.chartDetail(g.appId))));
-      await this.store.save();return {games,page,hasMore:(page+1)*24<rows.length,source:chartSource('coming'),total:rows.length};
+      const chart=this.charts.current('coming');
+      await this.store.save();return {games:games.filter(g=>g.comingSoon),page,hasMore:(page+1)*24<rows.length,source:chart.source+' · '+new Date(chart.updated).toLocaleString()+(chart.error?' · cached list':''),total:rows.length};
     }
     if(kind==='all'&&!preferences.catalogUrl){
       const entries=this.community().filter(g=>g.title.toLowerCase().includes(term.toLowerCase()));
@@ -256,14 +270,6 @@ export class CatalogService {
         return {games:[...new Map(games.map(g=>[g.appId,g])).values()],page,hasMore:true,source:'Combined download catalogs · matched store metadata where available'};
       }
       page-=Math.ceil(entries.length/24);
-    }
-    if(kind==='coming'&&!preferences.catalogUrl){
-      if(!this.wishlist||Date.now()-this.wishlist.time>3600000){try{this.wishlist={ids:await steamDbIds('coming'),source:'SteamDB · most wishlisted',time:Date.now()};}catch{this.wishlist={ids:[],source:'Steam · most wishlisted (SteamDB blocked)',time:Date.now()};}}
-      if(this.wishlist.ids.length){
-        const games=(await Promise.allSettled(this.wishlist.ids.slice(page*24,(page+1)*24).map(id=>this.detail(id)))).flatMap(r=>r.status==='fulfilled'&&r.value.comingSoon?[{...r.value,discoveryList:'coming' as const}]:[]);
-        for(const g of games)this.store.data.catalog[g.appId]=g;
-        return {games,page,hasMore:(page+1)*24<this.wishlist.ids.length,source:this.wishlist.source};
-      }
     }
     // Optional permitted index accepts the same paging request and returns App IDs,
     // never scripts or download URLs. Full metadata is still verified with Valve.
@@ -327,11 +333,7 @@ export class CatalogService {
         : kind==='coming' ? 'Steam · most wishlisted (SteamDB blocked)' : "Steam public store search",
     };
   }
-  async refreshRankings() {
-    const ranks = this.store.data.rankings;
-    const entries=this.chartEntries.filter(g=>g.discoveryList==='top');
-    ranks.ids=entries.map(g=>g.appId);ranks.positions=Object.fromEntries(entries.map(g=>[g.appId,g.chartRank!]));ranks.source=chartSource('top');ranks.region='Global';ranks.updated='2026-10-21T00:00:00.000Z';ranks.nextRefresh=Date.now()+3600000;ranks.error=undefined;
-    for(const entry of entries)if(!this.store.data.catalog[entry.appId])this.store.data.catalog[entry.appId]=entry;
-    await this.store.save();return ranks;
+  async refreshRankings(force=false) {
+    await this.refreshCharts(force);return this.store.data.rankings;
   }
 }

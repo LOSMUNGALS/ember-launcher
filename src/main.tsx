@@ -207,7 +207,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     return () => {
       current = false;
     };
-  }, [page, query]);
+  }, [page, query, page==='Coming Soon'?snap?.state.charts?.coming?.updated:undefined]);
   const navigate = (next: string) => {
     if(next==='Updates')setUpdatesVisit(n=>n+1);
     setPage(next);
@@ -966,24 +966,25 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
                         : "Find your next favorite. Quality and content filters apply to every discovery page."}
                   </p>
                 </div>
-                {page === "Top Sellers" && (
+                {(page === "Top Sellers" || page === "Coming Soon") && (
                   <button
                     disabled={pending > 0}
                     onClick={() =>
                       void call("rankings", { refresh: true, offset: 0 })
                     }
                   >
-                    ↻ Refresh ranking
+                    ↻ Refresh list
                   </button>
                 )}
               </div>
+              {page==='Coming Soon'&&<p className="muted">Most wishlisted upcoming games · Refreshes automatically every hour.{state.charts?.coming?.error?' '+state.charts.coming.error:''}</p>}
               {filters}
               {page === "Top Sellers" ? (
                 <>
                   <div className="notice">
                     {state.rankings.source} · Region: {state.rankings.region} ·{" "}
                     {state.rankings.ids.length}/100 entries returned
-                    <p>Fixed snapshot · Refresh reloads the supplied list and artwork.</p>
+                    <p>Updates automatically every hour · Last updated: {state.rankings.updated?new Date(state.rankings.updated).toLocaleString():'Not yet refreshed'}. Refresh checks Steam now.</p>
                     {state.rankings.error && (
                       <p>Cached results · {state.rankings.error}</p>
                     )}

@@ -37,5 +37,6 @@ test('filtered discovery includes off-page cached metadata and deduplicates feed
  const catalog={'10':loaded,'20':cached,'feed-20':cached,'chart-20':chart,hardware:game('hardware',{productType:'hardware'})};
  assert.deepEqual(catalogCandidates([loaded],catalog,'all',false),[loaded]);
  const filtered=catalogCandidates([loaded],catalog,'all',true);assert.equal(filtered.length,2);assert.ok(filtered.some(g=>(g.steamAppId||g.appId)==='20'));
- assert.deepEqual(catalogCandidates([],catalog,'coming',true),[chart]);
+ assert.deepEqual(catalogCandidates([],catalog,'coming',true),[]);
+ assert.deepEqual(catalogCandidates([chart],catalog,'coming',true),[chart]);
 });
