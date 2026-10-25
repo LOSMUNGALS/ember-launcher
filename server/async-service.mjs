@@ -125,7 +125,7 @@ export class AsyncAccounts {
             fail(403, current.status === 'pending' ? 'Your account is awaiting approval.' : current.status === 'rejected' ? `Request rejected. You may request again after ${new Date(current.retryAt).toISOString()}.` : 'Your access has been revoked. Contact the administrator.');
         const token = randomBytes(32).toString('base64url');
         await this.db.prepare('DELETE FROM sessions WHERE expires<?').run(this.now());
-        await this.db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(digest(token), u.id, this.now() + 7 * DAY);
+        await this.db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(digest(token), u.id, this.now() + (p.remember === true ? 30 : 7) * DAY);
         return { token, user: this.publicUser(current) };
     }
     async forgotPassword(email, sendReset, origin) {

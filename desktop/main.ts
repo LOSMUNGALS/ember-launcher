@@ -30,7 +30,8 @@ import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { launchResult, STARTUP_GRACE_MS } from './launch-result';
 import {launchHealth} from './launch-health';
-import { mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
+import {folderInventory,verifiedFolderCopy,managedMoveSource,retargetMoveMarker} from './storage';
+import { mkdir, readFile, writeFile, rm, stat, realpath } from "node:fs/promises";
 import { LibraryStore, validateGame } from "./library";
 import { StateStore } from "./state";
 import { CatalogService, appId, UnavailableGameError } from "./catalog";
@@ -76,7 +77,7 @@ else
       await library.load();
       await state.load();
       if(refreshOfficialArtwork(state.data.catalog))await state.save();
-      const accounts = new AccountClient(root);
+      const accounts = new AccountClient(root,{available:()=>safeStorage.isEncryptionAvailable()&&(process.platform!=='linux'||safeStorage.getSelectedStorageBackend()!=='basic_text'),encrypt:value=>safeStorage.encryptString(value),decrypt:value=>safeStorage.decryptString(value)});
       await accounts.load();
       const announcementRead=new AnnouncementRead(path.join(root,'announcement-read.json'));
       await announcementRead.load();
@@ -108,6 +109,7 @@ else
         message = "",
         scanning = false,
         installing = false;
+      const storageLocks=new Set<string>();
       const report = (e: unknown) => {
         message = String(e);
         changed();
@@ -465,6 +467,7 @@ else
         return g;
       }
       async function launch(id: string) {
+        if(storageLocks.has(id))throw Error('Wait for this game to finish moving.');
         await accounts.require(true);
         if(updating)throw Error('Wait for the launcher update to finish.');
         const g = find(id);
@@ -670,7 +673,7 @@ else
         return sourceSync;
       }
       async function action(type: V2Action, p: any = {}) {
-        if(type==='accountStatus') { if(accounts.user) await accounts.require().catch(()=>{}); return accounts.status(); }
+        if(type==='accountStatus') { if(accounts.user)await accounts.require().catch(()=>{});else{const restored=await accounts.restore();if(restored.user)await downloads.resumeRecovered()}return accounts.status(); }
         if(type==='accountLogin'){const status=await accounts.login(p);await downloads.resumeRecovered();return status;}
         if(type==='accountRegister') return accounts.request('register',p);
         if(type==='accountForgotPassword') return accounts.request('forgot-password',p);
@@ -700,6 +703,39 @@ else
         if(type==='replyFeedback')return accounts.request('feedback/reply',p);
         if(type==='moderateFeedback')return accounts.request('feedback/moderate',p);
         switch (type) {
+          case 'rememberSearch': {
+            const query=String(p.query||'').trim().slice(0,150);if(query){state.data.recentSearches=[query,...(state.data.recentSearches||[]).filter(q=>q.toLowerCase()!==query.toLowerCase())].slice(0,12);await state.save()}return;
+          }
+          case 'organizeGame': {
+            const game=find(p.id),collections=Array.isArray(p.collections)?p.collections.map(String).map((c:string)=>c.trim()).filter(Boolean):game.collections||[];
+            if(collections.length>20||collections.some((c:string)=>c.length>50)||p.playStatus&&!['backlog','playing','finished'].includes(p.playStatus))throw Error('Use up to 20 collections with names up to 50 characters.');
+            await library.mutate(d=>{const g=d.games.find(g=>g.id===game.id)!;g.collections=[...new Set<string>(collections)];if(typeof p.favorite==='boolean')g.favorite=p.favorite;if(typeof p.hidden==='boolean')g.hidden=p.hidden;if(p.playStatus)g.playStatus=p.playStatus});return;
+          }
+          case 'gameArtwork': {
+            const game=find(p.id);if(!['choose','reset'].includes(p.action))throw Error('Choose a cover action.');
+            if(p.action==='reset'){await library.mutate(d=>{d.games.find(g=>g.id===game.id)!.customArtwork=undefined});return}
+            const choice=await dialog.showOpenDialog(win,{title:'Choose a game cover',properties:['openFile'],filters:[{name:'Cover image',extensions:['png','jpg','jpeg','webp']}]});if(choice.canceled)return;
+            const file=choice.filePaths[0];if((await stat(file)).size>20*1024*1024)throw Error('Use an image smaller than 20 MB.');const image=nativeImage.createFromPath(file);if(image.isEmpty())throw Error('The image could not be read.');const size=image.getSize(),scale=Math.min(1,2000/Math.max(size.width,size.height));const bytes=(scale<1?image.resize({width:Math.max(1,Math.round(size.width*scale)),height:Math.max(1,Math.round(size.height*scale))}):image).toPNG();const name='custom-'+randomUUID()+'.png';await mkdir(art,{recursive:true});await writeFile(path.join(art,name),bytes,{mode:0o600});await library.mutate(d=>{d.games.find(g=>g.id===game.id)!.customArtwork='ember-art://library/'+name});return;
+          }
+          case 'storage': {
+            const rows=[];for(const game of library.data.games.filter(g=>g.installed)){
+              const directory=game.managed?.directory||(game.executable.toLowerCase().endsWith('.app')?game.executable:path.dirname(game.executable));
+              try{if(!path.isAbsolute(directory)||directory===path.parse(directory).root)throw Error('Storage location is unavailable.');const inventory=await folderInventory(directory);const disk=await (await import('node:fs/promises')).statfs(directory);rows.push({id:game.id,name:game.name,directory,bytes:inventory.bytes,free:disk.bavail*disk.bsize,movable:game.managed?.method==='zip',store:game.store})}catch(e){rows.push({id:game.id,name:game.name,directory,error:String(e),movable:false,store:game.store})}
+            }return {games:rows};
+          }
+          case 'backupSaves': {
+            const game=find(p.id),selected=await dialog.showOpenDialog(win,{title:'Choose the save-data folder for '+game.name,properties:['openDirectory']});if(selected.canceled)return;
+            const source=selected.filePaths[0];if(path.resolve(source)===path.parse(source).root)throw Error('Choose a specific save-data folder, not a drive.');const parent=path.join(root,'save-backups');await mkdir(parent,{recursive:true});const target=path.join(parent,randomUUID());await verifiedFolderCopy(source,target);await writeFile(path.join(target,'.ember-backup.json'),JSON.stringify({game:game.name,created:new Date().toISOString(),source}),{flag:'wx'});shell.showItemInFolder(target);return {directory:target};
+          }
+          case 'moveGame': {
+            const game=find(p.id);if(running.has(game.id)||storageLocks.has(game.id)||installing)throw Error('Close the game and wait for other installation operations first.');if(game.managed?.method!=='zip')throw Error('Only Ember-managed archive installations can move here. Use the original installer for this game.');
+            const source=await managedMoveSource(game.managed.directory,game.executable),choice=await dialog.showOpenDialog(win,{title:'Choose the destination drive or folder for '+game.name,properties:['openDirectory','createDirectory']});if(choice.canceled)return;
+            const target=path.join(await realpath(choice.filePaths[0]),path.basename(source.actual));if(!await confirm('Move '+game.name+'?',source.actual+'\n→ '+target+'\nThe copy is verified before Ember updates the library and removes the original.'))return;
+            storageLocks.add(game.id);installing=true;
+            try{await verifiedFolderCopy(source.actual,target);await retargetMoveMarker(target,target);const executable=path.join(target,source.relative);await nativeTarget(executable);await library.mutate(d=>{const g=d.games.find(g=>g.id===game.id)!;g.executable=executable;g.managed={...g.managed!,directory:target};g.lastLaunchError=undefined});
+              try{await uninstallManaged(source.actual)}catch{return {warning:'Game moved successfully. The old folder was retained because cleanup could not be verified.',directory:target}}return {directory:target};
+            }finally{storageLocks.delete(game.id);installing=false;changed()}
+          }
           case "snapshot": {
             const sourcesRevision = JSON.stringify(state.data.sources.map(s=>[s.id,s.url,s.updated,s.enabled,s.error,s.packages.length,s.lastAttempt,s.lastSuccess]));
             return {
@@ -836,6 +872,7 @@ else
             return;
           }
           case "removeGame": {
+            if(storageLocks.has(p.id))throw Error('Wait for this game move to finish.');
             if (running.has(p.id)) throw Error("Close the game first.");
             await library.mutate((d) => {
               d.games = d.games.filter((g) => g.id !== p.id);
@@ -849,6 +886,7 @@ else
           }
           case "repairGame": {
             const game=find(p.id);
+            if(storageLocks.has(game.id))throw Error('Wait for this game move to finish.');
             if(!['diagnose','choose','rescan'].includes(p.action))throw Error('Choose a valid repair action.');
             if(p.action==='diagnose')return launchHealth(game,nativeTarget);
             if(running.has(game.id))throw Error('Close this game before changing its executable.');
@@ -925,6 +963,7 @@ else
             }
             state.data.preferences = {
               resumeDownloads:v.resumeDownloads!==false,
+              torrentNatTraversal:v.torrentNatTraversal===true,
               region: v.region,
               concurrency: v.concurrency,
               minimumPositive: v.minimumPositive,
@@ -1071,6 +1110,7 @@ else
             return installPackage(p.id);
           case "uninstall": {
             const g = find(p.id);
+            if(storageLocks.has(g.id))throw Error('Wait for the game move to finish.');
             if (running.has(g.id)) throw Error("Close the game first.");
             if (g.store === "steam")
               return shell.openExternal(

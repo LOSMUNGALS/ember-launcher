@@ -3,6 +3,8 @@ import {AccountGate, type AccountUser} from './AccountGate';
 import {Updates} from './Updates';
 import {Feedback} from './Feedback';
 import {GameRepair} from './GameRepair';
+import {GameManagement,StorageManager} from './LibraryTools';
+import {matchesSearch} from './library-search';
 import {downloadStage,downloadAdvice} from './download-health';
 import {LauncherUpdateDialog} from './LauncherUpdateDialog';
 import { SourcePicker, SourceSettings } from "./DownloadSources";
@@ -64,6 +66,10 @@ const playLabel = (g: Game) =>
     : hours(playedSeconds(g));
 function App({user,logout}:{user:AccountUser;logout:()=>void}) {
   const [repair,setRepair]=useState<{id:string;name:string}>();
+  const [managing,setManaging]=useState<string>(),[collection,setCollection]=useState('all');
+  const [context,setContext]=useState<{game?:Game;meta?:CatalogGame;id:string;x:number;y:number}>();
+  const searchInput=useRef<HTMLInputElement>(null);
+  useEffect(()=>{const key=(event:KeyboardEvent)=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();if(searchInput.current?.hidden){setDetail(undefined);setPage('Library');setFilter('all');setCollection('all');requestAnimationFrame(()=>{searchInput.current?.focus();searchInput.current?.select()})}else{searchInput.current?.focus();searchInput.current?.select()}}if(event.key==='Escape')setContext(undefined)};window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key)},[]);
   const catalogRequest=useRef(0);
   const [updateDialog,setUpdateDialog]=useState(false),[unreadUpdates,setUnreadUpdates]=useState(false),[updatesVisit,setUpdatesVisit]=useState(0);
   const announcementsRequest=useRef(0);
@@ -159,13 +165,15 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     const timer = setTimeout(() => setQuery(search), 350);
     return () => clearTimeout(timer);
   }, [search]);
+  const detailGame=snap?.games.find(g=>g.id===detail);
+  const detailCatalogId=detail?.startsWith('steam-')?detail.slice(6):detailGame?.catalogId||detailGame?.steamId;
   useEffect(() => {
     let current = true;
     setMeta(undefined);
     setSources(false);
-    if (detail?.startsWith("steam-"))
+    if (detailCatalogId)
       void window.ember2
-        .call("detail", { id: detail.slice(6) })
+        .call("detail", { id: detailCatalogId })
         .then((m) => {
           if (current) {
             if (!m) setDetail(undefined);
@@ -179,7 +187,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     return () => {
       current = false;
     };
-  }, [detail, refresh]);
+  }, [detail, detailCatalogId, refresh]);
   useEffect(() => {
     let current = true;
     catalogRequest.current++;
@@ -217,6 +225,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     setDetail(undefined);
     setSearch("");
     setFilter("all");
+    setCollection('all');setContext(undefined);
     setGenre("all");
     setPlatform("all");
     setRating(0);
@@ -225,7 +234,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     setError("");
   };
   const filteredDiscovery=filter!=='all'||genre!=='all'||platform!=='all'||rating>0||reviewCount>0||year!=='all';
-  const home=useMemo(()=>snap?homeSelection(snap.games,snap.state.catalog,snap.state.preferences,snap.state.visits,snap.running):undefined,[snap]);
+  const home=useMemo(()=>{if(!snap)return;const hidden=new Set(snap.games.filter(g=>g.hidden).flatMap(g=>[g.steamId,g.catalogId].filter(Boolean)));const catalog=Object.fromEntries(Object.entries(snap.state.catalog).filter(([id,game])=>!hidden.has(id)&&!hidden.has(game.steamAppId||game.appId)));return homeSelection(snap.games.filter(g=>!g.hidden),catalog,snap.state.preferences,snap.state.visits,snap.running)},[snap]);
   const gamesByCatalog=useMemo(()=>{
     const index=new Map<string,Game>();
     for(const game of snap?.games||[])for(const id of [game.steamId,game.catalogId])if(id)index.set(id,game);
@@ -233,7 +242,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
   },[snap]);
   const discoveryGames=useMemo(()=>snap?catalogCandidates(results,snap.state.catalog,page==='Coming Soon'?'coming':'all',filteredDiscovery).filter(m=>quality(m,snap.state.preferences)):[],[results,snap,page,filteredDiscovery]);
   const genres=useMemo(()=>[...new Set(Object.values(snap?.state.catalog||{}).flatMap(g=>g.genres))].sort(),[snap]);
-  const detailMeta=meta||(detail?.startsWith('steam-')?snap?.state.catalog[detail.slice(6)]:undefined);
+  const detailMeta=meta||(detailCatalogId?snap?.state.catalog[detailCatalogId]:undefined);
   const officialSourceDownload=useMemo(()=>Boolean(detailMeta?.purchaseUrl)&&downloadOptions(snap?.state.sources||[],detailMeta?.origin?undefined:detailMeta?.steamAppId||detailMeta?.appId,detailMeta?.title||'',snap?.platform||'').length>0,[snap?.state.sources,snap?.platform,detailMeta?.purchaseUrl,detailMeta?.origin,detailMeta?.steamAppId,detailMeta?.appId,detailMeta?.title]);
   const loadMore=async()=>{
     const request=catalogRequest.current;
@@ -244,7 +253,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
   };
   const themeGame=detail?snap?.games.find(g=>g.id===detail||Boolean(g.catalogId===detail.replace(/^steam-/,''))):home?.heroGame;
   const themeMeta=detail?detailMeta:home?.heroMeta;
-  const artworkTheme=useArtworkTheme([themeMeta?.portrait,themeGame?.artwork,themeMeta?.cover,themeGame?.hero,themeMeta?.banner],detail?themeGame?.themeColor:home?.heroGame?.themeColor);
+  const artworkTheme=useArtworkTheme([themeGame?.customArtwork,themeMeta?.portrait,themeGame?.artwork,themeMeta?.cover,themeGame?.hero,themeMeta?.banner],detail?themeGame?.themeColor:home?.heroGame?.themeColor);
   if (!snap)
     return (
       <div className="startup">
@@ -258,11 +267,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     steamOwned = games.filter((g) => g.store === "steam" && g.owned),
     local = games.filter((g) => g.store === "local"),
     game = games.find((g) => g.id === detail || (Boolean(detail) && Boolean(g.catalogId) && g.catalogId===detail?.replace(/^steam-/,'')) || (Boolean(detail) && g.store==='local' && Boolean(g.steamId) && g.steamId===detail?.replace(/^steam-/,''))),
-    selectedMeta =
-      meta ||
-      (detail?.startsWith("steam-")
-        ? state.catalog[detail.slice(6)]
-        : undefined);
+    selectedMeta = detailMeta;
   const displayVersion=(snap.launcherUpdate?.currentVersion||'1.0.0').split('.').slice(0,2).join('.');
   const native = (m?: CatalogGame, g?: Game) => {
     if (
@@ -314,12 +319,12 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
     m=(g?.catalogId&&state.catalog[g.catalogId])||m;
     const id = g?.id || "steam-" + m!.appId;
     return (
-      <article className="v2-card" key={id}>
+      <article className="v2-card" key={id} onContextMenu={e=>{e.preventDefault();setContext({game:g,meta:m,id,x:Math.max(8,Math.min(e.clientX,window.innerWidth-260)),y:Math.max(8,Math.min(e.clientY,window.innerHeight-380))})}}>
         <button className="card-open" onClick={() => open(id)}>
           <div className="card-image">
             <GameCover
               key={id+":"+(m?.updated||"")}
-              sources={[m?.portrait,...steamCoverSources(g?.steamId || m?.steamAppId || m?.appId, g?.artwork),m?.cover]}
+              sources={[g?.customArtwork,m?.portrait,...steamCoverSources(g?.steamId || m?.steamAppId || m?.appId, g?.artwork),m?.cover]}
               title={g?.name || m?.title || "Game"}
             />
             {rank && <b className="rank">#{rank}</b>}
@@ -331,7 +336,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
                   : m?.price || "Discover"}
             </span>
           </div>
-          <strong>{g?.name || m?.title}</strong>
+          <strong>{g?.favorite&&<span className="favorite-marker">★</span>}{g?.name || m?.title}</strong>
           <small>
             {m?.reviews?.total
               ? `${Math.round((m.reviews.positive / m.reviews.total) * 100)}% positive · ${m.reviews.total.toLocaleString()} reviews`
@@ -388,10 +393,14 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
   const filterMeta = (m?: CatalogGame, g?: Game) => {
     if (
       query &&
-      !(g?.name || m?.title || "").toLowerCase().includes(query.toLowerCase())
+      !matchesSearch(query,g?.name,m?.title)
     )
       return false;
     if (genre !== "all" && !m?.genres.includes(genre)) return false;
+    if(filter==='hidden'?!g?.hidden:g?.hidden)return false;
+    if(filter==='favorite'&&!g?.favorite)return false;
+    if(['backlog','playing','finished'].includes(filter)&&(!g||(g.playStatus||'backlog')!==filter))return false;
+    if(collection!=='all'&&!g?.collections?.includes(collection))return false;
     if (platform !== "all" && !m?.platforms.includes(platform as any))
       return false;
     if (
@@ -462,6 +471,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
         <option value="uninstalled">Not installed</option>
         <option value="owned">Owned</option>
         <option value="saved">Saved</option>
+        <option value="favorite">Favorites</option><option value="playing">Playing</option><option value="finished">Finished</option><option value="backlog">Backlog</option><option value="hidden">Hidden</option>
       </select>
       <select
         aria-label="Genre"
@@ -618,8 +628,11 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
           {snap.launcherUpdate?.release&&<button className="launcher-update-available" onClick={()=>setUpdateDialog(true)}>Update available</button>}
           <input
             aria-label="Search games"
+            ref={searchInput}
+            list="recent-game-searches"
+            onKeyDown={e=>{if(e.key==='Enter')void call('rememberSearch',{query:search})}}
             hidden={["Settings", "Downloads"].includes(page) && !detail}
-            placeholder="Search games…"
+            placeholder="Search games… (Ctrl+K)"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -693,9 +706,10 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
                           (selectedMeta.reviews.positive /
                             selectedMeta.reviews.total) *
                             100,
-                        ) + "% positive"
-                      : "Not enough data"}
+                          ) + "% positive"
+                      : selectedMeta?.reviews?.total===0?'No reviews yet':'Reviews unavailable'}
                   </b>
+                  {selectedMeta?.reviews&&<small>{selectedMeta.reviews.total.toLocaleString()} reviews · {selectedMeta.reviewsSource||'Steam'} · {selectedMeta.reviews.summary}</small>}
                 </div>
                 <div>
                   <small>RELEASE</small>
@@ -705,6 +719,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
               {game && (
                 <div className="actions management">
                   <button onClick={()=>setRepair({id:game.id,name:game.name})}>Fix this game</button>
+                  <button onClick={()=>setManaging(game.id)}>Manage game</button>
                   {game.installed && (
                     <button
                       onClick={() => void call("reveal", { id: game.id })}
@@ -945,6 +960,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
                 </div>
               )}
               {filters}
+              <select className="collection-filter" aria-label="Collection" value={collection} onChange={e=>setCollection(e.target.value)}><option value="all">All collections</option>{[...new Set(games.flatMap(g=>g.collections||[]))].sort().map(name=><option key={name}>{name}</option>)}</select>
               <div className={"game-collection " + view}>
                 {libraryGames.map((g) =>
                   card(g, g.steamId ? state.catalog[g.steamId] : undefined),
@@ -1160,7 +1176,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
                   {downloadAdvice(j)&&<p className="muted">{downloadAdvice(j)}</p>}
                   {j.retryAt&&<small>Next retry: {new Date(j.retryAt).toLocaleTimeString()} · attempt {j.attempts}/3</small>}
                   {j.lastProgress&&<small>Last received data: {new Date(j.lastProgress).toLocaleString()}</small>}
-                  {j.package.transport === "torrent" && ["connecting", "downloading"].includes(j.status) && <p role="status">{j.peers ?? 0} connected peers · {j.discovery || "Starting peer discovery…"}</p>}
+                  {j.package.transport === "torrent" && ["connecting", "downloading"].includes(j.status) && <><p role="status">{j.peers ?? 0} connected peers · {j.sendingPeers??0} sending data · {j.chokedPeers??0} withholding data · {j.trackerCount??0} trackers · Download limit: Unlimited</p><p className="muted">{j.discovery || "Starting peer discovery…"} · Rarest-first piece selection. Your connection speed cannot exceed what this swarm supplies.</p><button onClick={()=>{navigate('All Games');setSearch(j.package.title.replace(/\s+[vV]?\d+\.\d+.*$/,''))}}>Find another release</button></>}
                   {j.package.transport && <p className="muted">{j.package.transport === "host" ? "Complete the host page steps in the Ember download window. Progress appears once the file transfer starts." : "Torrent pieces are verified against the magnet hash. Finished files are not automatically installed; paused/canceled files remain in the download folder."}</p>}
                   {j.package.transport && <button onClick={()=>void call("openDownload",{id:j.id})}>{j.package.transport === "host" && j.status !== "completed" ? "Open download host" : "Open download folder"}</button>}
                   <div className="actions">
@@ -1288,6 +1304,12 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
         const id=await call("download",{sourceId:s.id,packageId:p.id,appId:game?.steamId||selectedMeta?.steamAppId||selectedMeta?.appId});
         if(id){setSources(false);if(p.transport==='host')await call("openDownload",{id});}
       }}/>}
+      <datalist id="recent-game-searches">{(state.recentSearches||[]).map(query=><option key={query} value={query}/>)}</datalist>
+      {context&&<div className="context-menu-backdrop" onPointerDown={()=>setContext(undefined)}><div className="game-context-menu" role="menu" aria-label="Game actions" style={{left:context.x,top:context.y}} onPointerDown={e=>e.stopPropagation()}>
+        <button role="menuitem" onClick={()=>{open(context.id);setContext(undefined)}}>Open details</button>
+        {context.game?<><button role="menuitem" onClick={()=>{void call('organizeGame',{id:context.game!.id,favorite:!context.game!.favorite});setContext(undefined)}}>{context.game.favorite?'Remove favorite':'Add to favorites'}</button><button role="menuitem" onClick={()=>{setManaging(context.game!.id);setContext(undefined)}}>Manage collections and cover</button>{context.game.installed&&<><button role="menuitem" onClick={()=>{void call('launch',{id:context.game!.id});setContext(undefined)}}>Play</button><button role="menuitem" onClick={()=>{void call('reveal',{id:context.game!.id});setContext(undefined)}}>Open folder</button><button role="menuitem" onClick={()=>{void call('uninstall',{id:context.game!.id});setContext(undefined)}}>Uninstall…</button></>}</>:<button role="menuitem" onClick={()=>{void call('saveGame',{id:context.meta!.appId,saved:true});setContext(undefined)}}>Save to library</button>}
+      </div></div>}
+      {managing&&games.find(g=>g.id===managing)&&<GameManagement key={managing} game={games.find(g=>g.id===managing)!} onClose={()=>setManaging(undefined)}/>}
       {repair&&<GameRepair id={repair.id} name={repair.name} onClose={()=>setRepair(undefined)}/>}
       {edit && (
         <div className="modal-backdrop">
@@ -1490,9 +1512,11 @@ function Settings({
           content classifications are included. Review filters still apply.
         </p>
         <label><input type="checkbox" checked={prefs.resumeDownloads!==false} onChange={e=>setPrefs({...prefs,resumeDownloads:e.target.checked})}/> Resume interrupted direct and torrent downloads after login. Downloads paused by you stay paused; host downloads require reopening their host page.</label>
+        <label><input type="checkbox" checked={prefs.torrentNatTraversal===true} onChange={e=>setPrefs({...prefs,torrentNatTraversal:e.target.checked})}/> Allow router port mapping for incoming torrent peers (UPnP/NAT-PMP). Applies to new or resumed transfers.</label>
         <button className="primary">Save preferences</button>
       </form>
       <SourceSettings sources={snap.state.sources} call={call}/>
+      <StorageManager/>
       {snap.launcherUpdate&&<section className="settings-panel"><h2>Launcher updates</h2><p>Installed version: {snap.launcherUpdate.currentVersion}</p><p>{snap.launcherUpdate.supported?'Ember checks for published releases at startup and every 15 minutes.':snap.launcherUpdate.reason}</p>{snap.launcherUpdate.error&&<p role="alert">{snap.launcherUpdate.error}</p>}<button disabled={!snap.launcherUpdate.supported||['checking','downloading','downloaded','installing'].includes(snap.launcherUpdate.phase)} onClick={()=>void call('checkLauncherUpdate')}>{snap.launcherUpdate.phase==='checking'?'Checking…':'Check for launcher updates'}</button></section>}
       <section className="settings-panel">
         <h2>Platform & storage</h2>

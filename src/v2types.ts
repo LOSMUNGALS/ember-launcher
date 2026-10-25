@@ -1,6 +1,9 @@
 import type { Game } from "./types";
 export type OS = "windows" | "mac";
 export interface CatalogGame {
+  reviewsSource?: string;
+  reviewsUpdated?: string;
+  reviewsChecked?: string;
   steamAppId?: string;
   chartRank?: number;
   productType?: string;
@@ -31,6 +34,7 @@ export interface CatalogGame {
   updated: string;
 }
 export interface Preferences {
+  torrentNatTraversal?:boolean;
   resumeDownloads?: boolean;
   region: string;
   concurrency: number;
@@ -86,6 +90,9 @@ export type DownloadStatus =
   | "failed"
   | "canceled";
 export interface DownloadJob {
+  sendingPeers?:number;
+  chokedPeers?:number;
+  trackerCount?:number;
   installationState?: 'downloaded'|'extracting'|'installing'|'ready'|'needs-attention';
   installationError?: string;
   resumeOnStartup?: boolean;
@@ -115,6 +122,7 @@ export interface DownloadJob {
   installedGameId?: string;
 }
 export interface V2State {
+  recentSearches?:string[];
   charts?: Partial<Record<'coming'|'top', {games:CatalogGame[];source:string;updated:string;nextRefresh:number;region:string;error?:string}>>;
   defaultSourcesVersion?: number;
   preferences: Preferences;
@@ -156,6 +164,7 @@ export type V2Action =
   | "accountStatus" | "accountLogin" | "accountRegister" | "accountForgotPassword" | "accountLogout" | "accountConfigure" | "updates" | "publishUpdate"
   | "feedbackList" | "feedbackThread" | "feedbackImage" | "createFeedback" | "replyFeedback" | "moderateFeedback"
   | "repairGame"
+  | "organizeGame" | "gameArtwork" | "storage" | "moveGame" | "backupSaves" | "rememberSearch"
   | "snapshot"
   | "importSteam"
   | "syncSteam"

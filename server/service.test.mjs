@@ -8,6 +8,11 @@ import {startService} from './index.mjs';
 import {resendMailer} from './email.mjs';
 const password='Test-password-only-29381';
 
+test('remembered device sessions last 30 days but still expire and honor revocation',async()=>{
+ let now=Date.now();const accounts=new Accounts(':memory:','owner@example.com',()=>now);
+ try{await accounts.bootstrap(password);const normal=(await accounts.login({identifier:'owner@example.com',password})).token,remembered=(await accounts.login({identifier:'owner@example.com',password,remember:true})).token;now+=8*86400000;assert.throws(()=>accounts.authorize(normal),/expired/);assert.equal(accounts.authorize(remembered).role,'admin');now+=23*86400000;assert.throws(()=>accounts.authorize(remembered),/expired/)}finally{accounts.close()}
+});
+
 test('reset links are hashed, expiring, single-use, revoke sessions and preserve approval status',async()=>{
  let now=Date.now();const a=new Accounts(':memory:','owner@example.com',()=>now),sent=[];
  const send=async mail=>sent.push(mail),origin='https://accounts.example.com',next='New-password-only-29381';

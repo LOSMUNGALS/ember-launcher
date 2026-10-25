@@ -11,6 +11,8 @@ handoff/
 .env.*
 !.env.example
 steam-key.bin
+remembered-session.bin
+save-backups/
 .DS_Store
 Thumbs.db
 .account-service/

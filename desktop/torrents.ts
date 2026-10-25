@@ -31,7 +31,7 @@ export function validateTorrentFiles(files: {path:string;length:number}[], lengt
     seen.add(f.path.toLowerCase());
   }
 }
-export async function runTorrent(job: DownloadJob, signal: AbortSignal, changed: () => void, save: () => Promise<void>, testOptions?: {clientOptions?: any; onTorrent?: (torrent:any)=>void; announce?: string[]; metadataTimeoutMs?: number}) {
+export async function runTorrent(job: DownloadJob, signal: AbortSignal, changed: () => void, save: () => Promise<void>, testOptions?: {clientOptions?: any; onTorrent?: (torrent:any)=>void; announce?: string[]; metadataTimeoutMs?: number},options?:{natTraversal?:boolean}) {
   process.env.WS_NO_BUFFER_UTIL = "1";
   process.env.WS_NO_UTF_8_VALIDATE = "1";
   const [{default: WebTorrent}, {default: FileStore}] = await Promise.all([import("webtorrent"), import("fs-chunk-store")]);
@@ -40,7 +40,8 @@ export async function runTorrent(job: DownloadJob, signal: AbortSignal, changed:
   if ((await lstat(directory)).isSymbolicLink()) throw Error("Download folder must not be a symbolic link.");
   const disk = await statfs(directory);
   const announce = testOptions?.announce ?? (testOptions ? [] : await discoveryTrackers(job.package.url));
-  const client = new WebTorrent({downloadLimit:-1,uploadLimit:-1,maxConns:100,dht:true,tracker:announce.length ? {} : false,lsd:false,natUpnp:false,natPmp:false,utp:false,webSeeds:false,...testOptions?.clientOptions} as any);
+  const client = new WebTorrent({downloadLimit:-1,uploadLimit:-1,maxConns:100,dht:true,utPex:true,tracker:announce.length ? {} : false,lsd:false,natUpnp:options?.natTraversal===true,natPmp:options?.natTraversal===true,utp:false,webSeeds:false,...testOptions?.clientOptions} as any);
+  job.trackerCount=announce.length;
   job.peers = 0;
   job.discovery = announce.length ? 'Searching trackers and DHT for peers…' : 'Searching DHT for peers; tracker unavailable…';
   changed();
@@ -81,7 +82,7 @@ export async function runTorrent(job: DownloadJob, signal: AbortSignal, changed:
       timeout=setTimeout(()=>finish(Error("No peers supplied torrent metadata within 90 seconds. This release may have no seeders, or your network may block peer connections. Choose another release/source or retry later.")),testOptions?.metadataTimeoutMs ?? 90000);
       // Preserve literal urn:btih:; this engine rejects URLSearchParams-encoded xt values.
       const magnet = safeMagnet(job.package.url).split('&tr=')[0];
-      const torrent=client.add(magnet,{announce,path:directory,store:SafeStore,skipVerify:false} as any);
+      const torrent=client.add(magnet,{announce,path:directory,store:SafeStore,skipVerify:false,strategy:'rarest'} as any);
       testOptions?.onTorrent?.(torrent);
       torrent.on('error',(e: string | Error)=>finish(Error(String(e))));
       torrent.on('ready',()=>{clearTimeout(timeout);lastProgress=Date.now();job.total=torrent.length;job.status='downloading';changed();});
@@ -89,12 +90,14 @@ export async function runTorrent(job: DownloadJob, signal: AbortSignal, changed:
       let lastBytes = 0, lastProgress = Date.now(), lastSaved = Date.now();
       timer=setInterval(()=>{
         job.peers = torrent.numPeers;
+        job.sendingPeers=torrent.wires.filter((wire:any)=>wire.downloadSpeed()>0).length;
+        job.chokedPeers=torrent.wires.filter((wire:any)=>wire.peerChoking).length;
         job.discovery = torrent.ready ? (torrent.numPeers ? 'Connected to peers' : 'Waiting for peers with available pieces…') : (torrent.numPeers ? 'Connected; requesting torrent metadata…' : 'Searching for peers. Older releases may have no seeders.');
         if (torrent.ready) {
           if(torrent.downloaded > lastBytes) {lastBytes=torrent.downloaded;lastProgress=Date.now();job.lastProgress=new Date(lastProgress).toISOString();}
           if(Date.now()-lastProgress > 120000) return finish(Error('No download progress for two minutes. Peers may not have the remaining pieces. Retry or choose another release/source; partial files are preserved.'));
           job.downloaded=torrent.downloaded;job.total=torrent.length;job.speed=torrent.downloadSpeed;
-          job.averageSpeed=job.speed;job.eta=job.speed>0?(job.total-job.downloaded)/job.speed:undefined;
+          job.averageSpeed=job.averageSpeed?job.averageSpeed*.8+job.speed*.2:job.speed;job.eta=job.averageSpeed>0?(job.total-job.downloaded)/job.averageSpeed:undefined;
           if(!saving && Date.now()-lastSaved>=15000){saving=true;lastSaved=Date.now();void save().catch(e=>finish(e)).finally(()=>saving=false);}
         }
         changed();

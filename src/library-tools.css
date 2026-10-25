@@ -1,0 +1,81 @@
+.library-management form {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+}
+.library-management label {
+  display: block;
+}
+.library-management label > input:not([type="checkbox"]),
+.library-management select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+}
+.library-management input[type="checkbox"],
+.account-card .remember-device input {
+  display: inline-block;
+  width: auto;
+  margin: 0 8px 0 0;
+}
+.library-management header {
+  height: auto;
+  padding: 0;
+}
+.library-management .actions {
+  flex-wrap: wrap;
+}
+.storage-row {
+  padding: 22px 0;
+  border-top: 1px solid #ffffff18;
+  margin-top: 18px;
+}
+.storage-row code {
+  overflow-wrap: anywhere;
+}
+.storage-row .actions {
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.context-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: transparent;
+}
+.game-context-menu {
+  position: fixed;
+  width: 240px;
+  max-height: 80vh;
+  overflow: auto;
+  padding: 8px;
+  background: #1c282b;
+  border: 1px solid #ffffff25;
+  border-radius: 16px;
+  box-shadow: 0 16px 60px #0008;
+  display: grid;
+  gap: 4px;
+}
+.game-context-menu button {
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 12px;
+}
+.game-context-menu button:hover {
+  background: #ffffff12;
+}
+.collection-filter {
+  max-width: 200px;
+}
+.favorite-marker {
+  color: #f7c18f;
+  margin-right: 5px;
+}
+.review-source {
+  display: block;
+}
+.account-card .remember-device {
+  font-size: 0.9rem;
+}

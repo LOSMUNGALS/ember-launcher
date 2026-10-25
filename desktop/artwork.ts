@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import type { Game } from "../src/types";
 export function artworkFile(url: string, directory: string): string | null {
+  const custom=/^ember-art:\/\/library\/(custom-[a-f0-9-]{36}\.png)$/.exec(url);if(custom)return path.join(directory,custom[1]);
   const match =
     /^ember-art:\/\/library\/(steam-\d+-(?:cover|hero|logo)\.(?:jpg|png|webp))$/.exec(
       url,

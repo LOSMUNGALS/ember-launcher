@@ -136,7 +136,7 @@ export class DownloadManager {
     this.changed();
     try {
       if (job.package.transport === "torrent") {
-        await runTorrent(job, signal, this.changed, () => this.store.save());
+        await runTorrent(job, signal, this.changed, () => this.store.save(),undefined,{natTraversal:this.store.data.preferences.torrentNatTraversal});
         return;
       }
       let offset = await stat(this.file(job, true))
@@ -230,7 +230,7 @@ export class DownloadManager {
             sample = now;
             this.changed();
           }
-          if (now - lastSaved > 1000) {
+          if (now - lastSaved > 5000) {
             await this.store.save();
             lastSaved = now;
           }

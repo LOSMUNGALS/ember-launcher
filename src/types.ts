@@ -26,6 +26,11 @@ export interface SteamDashboard {
   errors?: string[];
 }
 export interface Game {
+  favorite?:boolean;
+  hidden?:boolean;
+  collections?:string[];
+  playStatus?:'backlog'|'playing'|'finished';
+  customArtwork?:string;
   lastLaunchError?: string;
   catalogId?: string;
   unavailable?: boolean;

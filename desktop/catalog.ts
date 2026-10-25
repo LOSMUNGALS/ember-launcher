@@ -1,5 +1,7 @@
 import {chartSnapshot,chartSource} from './chart-snapshots';
 import {LiveCharts} from './live-charts';
+import {reviewSummary,reviewUrl} from './reviews';
+import {matchesSearch} from '../src/library-search';
 import {lookupTitle,matchSteamTitle} from './title-match';
 import {steamPortrait} from './store-assets';
 import { jsonHttps, requestHttps } from "./http";
@@ -51,7 +53,7 @@ export function parseCatalog(id: string, raw: any, reviews: any): CatalogGame {
     : descriptors.some((x: number) => [3, 4].includes(x))
       ? "explicit"
       : "allowed";
-  const q = reviews?.success === 1 ? reviews.query_summary : undefined;
+  const q = reviews?.response?.query_summary||(reviews?.success === 1 ? reviews.query_summary : undefined);
   const valid =
     q &&
     Number.isSafeInteger(q.total_reviews) &&
@@ -147,7 +149,7 @@ export class CatalogService {
     try{
       if(!steamId){const found=await this.readJson('https://store.steampowered.com/api/storesearch/?term='+encodeURIComponent(entry.title)+'&l=english&cc='+this.store.data.preferences.region);const match=matchSteamTitle(entry.title,found.items);if(match){steamId=String(match.id);cover=match.tiny_image||cover;}}
       if(steamId){
-        const raw=await this.readJson('https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json='+encodeURIComponent(JSON.stringify({ids:[{appid:Number(steamId)}],context:{language:'english',country_code:this.store.data.preferences.region},data_request:{include_assets:true}})));
+        const raw=await this.readJson('https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json='+encodeURIComponent(JSON.stringify({ids:[{appid:Number(steamId)}],context:{language:'english',country_code:this.store.data.preferences.region},data_request:{include_assets:true}}))).catch(()=>null);
         const portrait=steamPortrait(steamId,raw);
         const meta=full?await this.detail(steamId).catch(()=>this.store.data.catalog[steamId!]):this.store.data.catalog[steamId];
         const result:CatalogGame={...entry,...meta,appId:id,steamAppId:steamId,origin:undefined,chartRank:entry.chartRank,productType:entry.productType,discoveryList:entry.discoveryList,comingSoon:entry.discoveryList==='coming'?(meta?.comingSoon??entry.comingSoon):entry.comingSoon,portrait:portrait||meta?.portrait||entry.portrait,cover:meta?.cover||cover,purchaseUrl:entry.productType==='game'?undefined:`https://store.steampowered.com/app/${steamId}/`,updated:new Date().toISOString(),artworkVersion:portrait?2:undefined};
@@ -168,7 +170,7 @@ export class CatalogService {
   async communityDetail(id:string,persist=true):Promise<CatalogGame> {
     this.community();
     const old=this.store.data.catalog[id];
-    if(old&&Date.now()-(this.communityChecked.get(id)||0)<300000)return old;
+    if(old&&Date.now()-(this.communityChecked.get(id)||0)<300000)return this.ensureReviews(old);
     let task=this.communityPending.get(id);
     if(!task){task=this.resolveCommunityDetail(id);this.communityPending.set(id,task);}
     try{
@@ -181,7 +183,7 @@ export class CatalogService {
   private async resolveCommunityDetail(id:string):Promise<CatalogGame> {
     const old=this.store.data.catalog[id];
     const entry=this.community().find(g=>g.appId===id)||old;if(!entry)throw Error('Catalog game not found.');
-    if(old&&old.origin!=='community'&&old.artworkVersion===1&&Date.now()-Date.parse(old.updated)<86400000)return old;
+    if(old&&old.origin!=='community'&&old.artworkVersion===1&&Date.now()-Date.parse(old.updated)<86400000)return this.ensureReviews(old);
     const official=officialPages[communityKey(entry.title)];
     if(official){const result={...entry,title:official.title,purchaseUrl:official.url,cover:official.cover||entry.cover,portrait:official.cover||entry.portrait,banner:official.cover||entry.banner,platforms:official.platforms||[]};this.store.data.catalog[id]=result;return result;}
     if(entry.purchaseUrl){this.store.data.catalog[id]=entry;return entry;}
@@ -195,6 +197,16 @@ export class CatalogService {
       }
     }catch{/* Keep unmatched catalog records visible without inventing Steam ownership. */}
     this.store.data.catalog[id]=entry;return entry;
+  }
+  private reviewPending=new Map<string,Promise<CatalogGame>>();
+  private async ensureReviews(game:CatalogGame){
+    const id=game.steamAppId||game.appId;if(!/^\d+$/.test(id))return game;
+    if(game.reviewsChecked&&Date.now()-Date.parse(game.reviewsChecked)<(game.reviewsUpdated===game.reviewsChecked?21600000:300000))return game;
+    const existing=this.reviewPending.get(id);if(existing)return existing;
+    const task=(async()=>{const raw=await this.readJson(reviewUrl(id)).catch(()=>undefined),reviews=reviewSummary(raw),checked=new Date().toISOString();const result={...game,reviews:reviews||game.reviews,reviewsChecked:checked,reviewsUpdated:reviews?checked:game.reviewsUpdated,reviewsSource:reviews?'Steam':game.reviewsSource};
+      for(const [key,cached] of Object.entries(this.store.data.catalog))if((cached.steamAppId||cached.appId)===id)this.store.data.catalog[key]={...cached,reviews:result.reviews,reviewsChecked:checked,reviewsUpdated:result.reviewsUpdated,reviewsSource:result.reviewsSource};
+      this.store.data.catalog[game.appId]=result;await this.store.save();return result;
+    })().finally(()=>this.reviewPending.delete(id));this.reviewPending.set(id,task);return task;
   }
   private pending = new Map<string, Promise<CatalogGame>>();
   constructor(private store: StateStore, private readJson:typeof jsonHttps=jsonHttps) {this.charts=new LiveCharts(store,readJson);this.applyCharts();}
@@ -213,7 +225,7 @@ export class CatalogService {
     appId(id);
     const old = this.store.data.catalog[id];
     if (!force && old && (old.artworkVersion === 1 || Boolean(process.env.EMBER_DATA_DIR)) && Date.now() - Date.parse(old.updated) < 86400000)
-      return old;
+      return this.ensureReviews(old);
     const active = this.pending.get(id);
     if (active) return active;
     const job = (async () => {
@@ -223,11 +235,12 @@ export class CatalogService {
           `https://store.steampowered.com/api/appdetails?appids=${id}&cc=${region}&l=english`,
         ),
         this.readJson(
-          `https://store.steampowered.com/appreviews/${id}?json=1&language=all&purchase_type=all&num_per_page=0`,
+          reviewUrl(id),
         ).catch(() => null),
         this.readJson('https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json='+encodeURIComponent(JSON.stringify({ids:[{appid:Number(id)}],context:{language:'english',country_code:region},data_request:{include_assets:true}}))).catch(()=>null),
       ]);
       const game = parseCatalog(id, raw, reviews);
+      game.reviewsChecked=new Date().toISOString();game.reviewsSource=game.reviews?'Steam':old?.reviewsSource;game.reviewsUpdated=game.reviews?game.reviewsChecked:old?.reviewsUpdated;game.reviews??=old?.reviews;
       game.portrait=steamPortrait(id,assets);game.artworkVersion=1;game.discoveryList=old?.discoveryList;
       this.store.data.catalog[id] = game;
       if(persist)await this.store.save();
@@ -260,7 +273,7 @@ export class CatalogService {
       await this.store.save();return {games:games.filter(g=>g.comingSoon),page,hasMore:(page+1)*24<rows.length,source:chart.source+' · '+new Date(chart.updated).toLocaleString()+(chart.error?' · cached list':''),total:rows.length};
     }
     if(kind==='all'&&!preferences.catalogUrl){
-      const entries=this.community().filter(g=>g.title.toLowerCase().includes(term.toLowerCase()));
+      const entries=this.community().filter(g=>matchesSearch(term,g.title));
       if(page*24<entries.length){
         const rows=entries.slice(page*24,(page+1)*24);
         const before=rows.map(g=>this.store.data.catalog[g.appId]);
