@@ -268,6 +268,28 @@ try {
   await page.evaluate(version=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'restore',version}),fetched.id);
   assert.equal(await readFile(path.join(saves,'save.dat'),'utf8'),'save fixture');
   await assert.rejects(page.evaluate(()=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'upload',expectedRevision:0})),/conflict/);
+  const oldPersonalization=await page.evaluate(()=>window.ember2.call('displaySettings'));
+  await assert.rejects(page.evaluate(()=>window.ember2.call('personalization',{reduceMotion:false})),/Invalid personalization/);
+  assert.deepEqual(await page.evaluate(()=>window.ember2.call('displaySettings')),oldPersonalization);
+  await page.getByLabel('High contrast',{exact:true}).uncheck();
+  await page.waitForFunction(()=>document.documentElement.dataset.contrast==='');
+  await page.getByLabel('Reduce motion',{exact:true}).uncheck();
+  await page.waitForFunction(()=>document.documentElement.dataset.motion==='');
+  const toggled=await page.evaluate(()=>window.ember2.call('displaySettings'));assert.equal(toggled.highContrast,false);assert.equal(toggled.reduceMotion,false);
+  await app.evaluate(({ipcMain})=>{
+    const original=ipcMain._invokeHandlers.get('ember2');ipcMain.__auditOriginal=original;ipcMain.removeHandler('ember2');
+    ipcMain.handle('ember2',async(event,type,p={})=>{
+      if(type==='saveProtection'&&p.mode==='list'){await new Promise(r=>setTimeout(r,p.id==='library-fixture'?200:10));return {versions:[{id:p.id,created:'2026-10-25T00:00:00Z',files:p.id==='library-fixture'?111:222}]};}
+      const result=await original(event,type,p);if(type==='snapshot')result.games.push({...result.games[0],id:'race-two',name:'Race two'});return result;
+    });
+  });
+  await page.evaluate(()=>window.ember2.call('rememberSearch',{query:'race check'}));
+  await page.getByLabel('Game',{exact:true}).selectOption('library-fixture');
+  await page.getByLabel('Game',{exact:true}).selectOption('race-two');
+  await page.waitForTimeout(300);
+  const savePanel=page.locator('.settings-panel').filter({has:page.getByRole('heading',{name:'Save protection',exact:true})});
+  assert.ok((await savePanel.innerText()).includes('222 files'));assert.ok(!(await savePanel.innerText()).includes('111 files'));
+  await app.evaluate(({ipcMain})=>{ipcMain.removeHandler('ember2');ipcMain.handle('ember2',ipcMain.__auditOriginal);delete ipcMain.__auditOriginal});
   await page.getByRole('heading',{name:'Save protection',exact:true}).scrollIntoViewIfNeeded();
   await page.screenshot({path:'artifacts/part4-save-protection.png'});
   await page.getByTitle('Feedback',{exact:true}).click();

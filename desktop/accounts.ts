@@ -109,6 +109,7 @@ export class AccountClient {
     );
     return this.status();
   }
+  sessionIdentity(){return this.url+':'+this.user?.id+':'+this.generation;}
   status() {
     return {
       user: this.user || null,
@@ -117,7 +118,7 @@ export class AccountClient {
     };
   }
   async request(route: string, body?: unknown) {
-    const token = this.token;
+    const token = this.token,generation=this.generation,origin=this.url;
     let response: Response;
     try {
       response = await fetch(this.url + "/api/" + route, {
@@ -145,6 +146,7 @@ export class AccountClient {
     } catch {
       throw Error("The account service returned an invalid response.");
     }
+    if(generation!==this.generation||origin!==this.url||token!==this.token)throw Error('Session changed. Try again after logging in.');
     if (!response.ok) {
       if (response.status === 401 && this.token === token) {
         this.token = "";

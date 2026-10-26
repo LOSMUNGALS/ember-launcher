@@ -28,5 +28,5 @@ try {
  assert.equal(state.downloads[0].status,'paused');
  instance=await electron.launch(options);page=await instance.firstWindow();await page.locator('.v2-app').waitFor();
  const status=await page.evaluate(async()=> (await window.ember2.call('snapshot')).state.downloads[0].status);
- assert.equal(status,'paused');console.log('PASS: closing during peer discovery saves a paused job; next launch opens successfully.');
+ assert.equal(state.downloads[0].resumeOnStartup,true);assert.ok(['queued','connecting','downloading','verifying'].includes(status));console.log('PASS: closing during peer discovery saves a resumable job; next authenticated launch recovers it.');
 }finally{await instance.close();}

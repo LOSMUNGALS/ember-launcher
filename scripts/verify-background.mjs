@@ -43,6 +43,7 @@ try{
   await page.locator('nav').getByTitle(name,{exact:true}).click();
   await page.waitForFunction(()=>document.querySelectorAll('.v2-card').length===3);
   assert.equal(await page.getByRole('button',{name:'Load next page'}).count(),0);
+  await page.waitForFunction(()=>!document.querySelector('.infinite-loader'));
   assert.equal(await page.locator('.infinite-loader').count(),0);
  }
  await page.locator('.card-open').first().click();

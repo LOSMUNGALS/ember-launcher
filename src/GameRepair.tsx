@@ -11,6 +11,7 @@ export function GameRepair({
   const dialog = useRef<HTMLDialogElement>(null),
     [health, setHealth] = useState<{
       executable: string;
+      launchMethod?: string;
       exists: boolean;
       ready: boolean;
       issues: string[];
@@ -55,11 +56,16 @@ export function GameRepair({
       {health && (
         <>
           <p>
-            Registered executable: <code>{health.executable || "Not set"}</code>
+            {health.launchMethod === "steam"
+              ? "Steam installation folder:"
+              : "Registered executable:"}{" "}
+            <code>{health.executable || "Not set"}</code>
           </p>
           {health.ready ? (
             <p role="status">
-              Executable found and passed the platform checks. You can try Play.
+              {health.launchMethod === "steam"
+                ? "Steam installation folder found. Steam manages the game executable; you can try Play."
+                : "Executable found and passed the platform checks. You can try Play."}
             </p>
           ) : (
             <ul>
@@ -78,7 +84,10 @@ export function GameRepair({
         <button disabled={busy} onClick={() => void run("rescan")}>
           Rescan installation
         </button>
-        <button disabled={busy} onClick={() => void run("choose")}>
+        <button
+          disabled={busy || health?.launchMethod === "steam"}
+          onClick={() => void run("choose")}
+        >
           Choose executable
         </button>
         <button

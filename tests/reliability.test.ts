@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, readFile, stat } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, stat, rm } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import os from "node:os";
@@ -301,3 +301,4 @@ test("launch diagnostics distinguish missing executables from platform failures 
   assert.equal(result.ready, true);
   assert.equal((await stat(file)).size, 7);
 });
+test('Steam launch repair validates the installation folder, not a native executable',async()=>{const root=await mkdtemp(path.join(os.tmpdir(),'ember-steam-health-'));try{let called=false;const result=await launchHealth({store:'steam',steamId:'123',executable:root,installed:true} as Game,async()=>{called=true;throw Error('Expected exe')});assert.equal(result.ready,true);assert.equal(result.launchMethod,'steam');assert.equal(called,false);const absent=await launchHealth({store:'steam',steamId:'123',executable:path.join(root,'missing'),installed:true} as Game,async()=>{});assert.equal(absent.ready,false)}finally{await rm(root,{recursive:true,force:true})}});

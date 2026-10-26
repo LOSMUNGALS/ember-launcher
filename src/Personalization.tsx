@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 export function DisplayPreferences() {
   useEffect(() => {
     let active = true;
-    const refresh = () =>
-      void window.ember2
+    let generation = 0;
+    const refresh = () => {
+      const request = ++generation;
+      return void window.ember2
         .call("displaySettings")
         .then((p) => {
-          if (!active) return;
+          if (!active || request !== generation) return;
           document.documentElement.dataset.motion = p.reduceMotion
             ? "reduced"
             : "";
@@ -15,6 +17,7 @@ export function DisplayPreferences() {
             : "";
         })
         .catch(() => {});
+    };
     refresh();
     const off = window.ember2.subscribe(refresh);
     return () => {
@@ -26,11 +29,41 @@ export function DisplayPreferences() {
 }
 export function Personalization() {
   const [p, setP] = useState<any>({}),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [busy, setBusy] = useState(false),
+    [loaded, setLoaded] = useState(false);
+  const saving = useRef(false);
   useEffect(() => {
-    void window.ember2.call("displaySettings").then(setP);
+    let active = true,
+      generation = 0;
+    const refresh = () => {
+      const request = ++generation;
+      void window.ember2
+        .call("displaySettings")
+        .then((result) => {
+          if (active && request === generation && !saving.current) {
+            setP(result);
+            setLoaded(true);
+          }
+        })
+        .catch((e) => {
+          if (active && request === generation) setMessage(String(e));
+        });
+    };
+    refresh();
+    const off = window.ember2.subscribe(refresh);
+    return () => {
+      active = false;
+      off();
+    };
   }, []);
   async function change(key: string, value: boolean) {
+    if (!loaded || saving.current) return;
+    const previous = p,
+      next = { ...p, [key]: value };
+    saving.current = true;
+    setP(next);
+    setBusy(true);
     try {
       const result = await window.ember2.call("personalization", {
         ...p,
@@ -39,7 +72,11 @@ export function Personalization() {
       setP(result);
       setMessage("Saved.");
     } catch (e) {
+      setP(previous);
       setMessage(String(e));
+    } finally {
+      saving.current = false;
+      setBusy(false);
     }
   }
   return (
@@ -55,6 +92,7 @@ export function Personalization() {
         <label key={key} style={{ display: "block", margin: "14px 0" }}>
           <input
             type="checkbox"
+            disabled={busy || !loaded}
             checked={
               key === "announcementBadge" ? p[key] !== false : p[key] === true
             }

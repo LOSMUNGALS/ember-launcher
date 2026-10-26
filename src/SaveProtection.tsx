@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import type { Game } from "./types";
 export function SaveProtection({ games }: { games: Game[] }) {
   const [id, setId] = useState(""),
@@ -6,11 +6,14 @@ export function SaveProtection({ games }: { games: Game[] }) {
     [cloud, setCloud] = useState<any>(),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
-  const refresh = async (gameId: string) =>
-    setVersions(
-      (await window.ember2.call("saveProtection", { id: gameId, mode: "list" }))
-        .versions,
-    );
+  const selected = useRef("");
+  const refresh = async (gameId: string) => {
+    const result = await window.ember2.call("saveProtection", {
+      id: gameId,
+      mode: "list",
+    });
+    if (selected.current === gameId) setVersions(result.versions);
+  };
   async function run(mode: string, version?: string) {
     setBusy(true);
     setMessage("");
@@ -23,10 +26,11 @@ export function SaveProtection({ games }: { games: Game[] }) {
       });
       if (mode === "cloudStatus") setCloud(r);
       setMessage(r?.message || "Finished.");
-      await refresh(id);
+      if (mode === "upload") setCloud(undefined);
     } catch (e) {
       setMessage(String(e));
     } finally {
+      await refresh(id).catch((e) => setMessage(String(e)));
       setBusy(false);
     }
   }
@@ -41,15 +45,20 @@ export function SaveProtection({ games }: { games: Game[] }) {
       <label>
         Game{" "}
         <select
+          aria-label="Game"
           value={id}
           disabled={busy}
           onChange={(e) => {
             const value = e.target.value;
+            selected.current = value;
             setId(value);
             setVersions([]);
             setCloud(undefined);
             setMessage("");
-            if (value) void refresh(value).catch((e) => setMessage(String(e)));
+            if (value)
+              void refresh(value).catch((e) => {
+                if (selected.current === value) setMessage(String(e));
+              });
           }}
         >
           <option value="">Choose a game</option>

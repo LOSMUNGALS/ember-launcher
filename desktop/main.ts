@@ -716,42 +716,48 @@ else
         if(type==='moderateFeedback')return accounts.request('feedback/moderate',p);
         switch (type) {
           case 'saveProtection': {
-            const game=find(p.id),key=cloudKey(game);
+            const game=find(p.id),key=cloudKey(game),sessionIdentity=accounts.sessionIdentity();
+            const assertSession=()=>{if(sessionIdentity!==accounts.sessionIdentity()||!accounts.user)throw Error('Account changed. Try again after logging in.');};
+            const saveRequest=async(body?:unknown)=>{assertSession();const result=await accounts.request('saves?key='+encodeURIComponent(key),body);assertSession();return result;};
             if(p.mode==='list')return {versions:await saveVersions.list(key)};
-            if(p.mode==='cloudStatus'){const r=await accounts.request('saves?key='+encodeURIComponent(key));return {revision:r.revision,updated:r.updated,message:r.revision?'Cloud save is available.':'No cloud save yet.'}}
+            if(p.mode==='cloudStatus'){const r=await saveRequest();return {revision:r.revision,updated:r.updated,message:r.revision?'Cloud save is available.':'No cloud save yet.'}}
             if(running.has(game.id)||storageLocks.has(game.id)||installing)throw Error('Close the game and finish other installation/save operations first.');
             storageLocks.add(game.id);installing=true;
             try{
               if(p.mode==='download'){
-                const r=await accounts.request('saves?key='+encodeURIComponent(key));if(!r.payload)throw Error('No cloud save exists.');if(r.payload.key!==key)throw Error('Cloud save identity does not match.');
+                const r=await saveRequest();if(!r.payload)throw Error('No cloud save exists.');if(r.payload.key!==key)throw Error('Cloud save identity does not match.');
                 const local=await saveVersions.importCloud(r.payload);return {message:'Cloud revision '+r.revision+' saved as a local backup. Choose Restore this version to apply it.',...local};
               }
               if(!['backup','upload','restore'].includes(p.mode))throw Error('Choose a save operation.');
-              const selected=await dialog.showOpenDialog(win,{title:(p.mode==='restore'?'Choose the current save folder to replace for ':'Choose the save-data folder for ')+game.name,properties:['openDirectory']});if(selected.canceled)return {message:'Canceled.'};
+              const selected=await dialog.showOpenDialog(win,{title:(p.mode==='restore'?'Choose the current save folder to replace for ':'Choose the save-data folder for ')+game.name,properties:['openDirectory']});assertSession();if(selected.canceled)return {message:'Canceled.'};
               if(p.mode==='restore'){
                 if(!await confirm('Restore this save version?',game.name+'\nCurrent saves will be backed up first. Close the game before continuing.'))return {message:'Canceled.'};
-                const result=await saveVersions.restore(String(p.version),key,game.name,selected.filePaths[0]);return {message:'Save version restored. Previous saves are preserved in the backup list and at '+result.rollback,...result};
+                assertSession();const result=await saveVersions.restore(String(p.version),key,game.name,selected.filePaths[0]);return {message:'Save version restored. Previous saves are preserved in the backup list and at '+result.rollback,...result};
               }
               if(p.mode==='upload'&&!await confirm(p.expectedRevision?'Replace cloud revision '+p.expectedRevision+'?':'Upload saves to your account?',game.name+'\nOnly select this game’s save folder. A new remote revision will block this upload.'))return {message:'Canceled.'};
-              const local=await saveVersions.snapshot(key,game.name,selected.filePaths[0]);
-              if(p.mode==='upload'){const previous=await accounts.request('saves?key='+encodeURIComponent(key));if(previous.revision!==p.expectedRevision)throw Error('Cloud save conflict: refresh cloud status and choose which version to keep. Local backup preserved.');if(previous.payload)await saveVersions.importCloud(previous.payload);const payload=await saveVersions.payload(local.id,key);const r=await accounts.request('saves?key='+encodeURIComponent(key),{expectedRevision:p.expectedRevision,payload});return {message:'Uploaded cloud revision '+r.revision+'. Refresh cloud status before uploading again.',...local}}
+              assertSession();const local=await saveVersions.snapshot(key,game.name,selected.filePaths[0]);
+              if(p.mode==='upload'){const previous=await saveRequest();if(previous.revision!==p.expectedRevision)throw Error('Cloud save conflict: refresh cloud status and choose which version to keep. Local backup preserved.');if(previous.payload)await saveVersions.importCloud(previous.payload);const payload=await saveVersions.payload(local.id,key);const r=await saveRequest({expectedRevision:p.expectedRevision,payload});return {message:'Uploaded cloud revision '+r.revision+'. Refresh cloud status before uploading again.',...local}}
               return {message:'Created a new verified save version.',...local};
             }finally{storageLocks.delete(game.id);installing=false;changed()}
           }
           case 'diagnostics':return diagnosticReport(state.data,app.getVersion());
           case 'personalization': {
-            for(const key of ['reduceMotion','highContrast','notifyDownloads','notifyErrors','announcementBadge'] as const){if(typeof p[key]!=='boolean')throw Error('Invalid personalization settings.');state.data.preferences[key]=p[key]}
+            const keys=['reduceMotion','highContrast','notifyDownloads','notifyErrors','announcementBadge'] as const;
+            if(keys.some(key=>typeof p[key]!=='boolean'))throw Error('Invalid personalization settings.');
+            for(const key of keys)state.data.preferences[key]=p[key];
             await state.save();return action('displaySettings');
           }
           case 'cloudLibrary': {
  await accounts.require(true);
+ const originalSession=accounts.sessionIdentity();
  if(!['upload','restore'].includes(p.mode))throw Error('Choose backup or restore.');
  const choice=await dialog.showMessageBox(win,{type:'question',buttons:['Cancel',p.mode==='upload'?'Back up':'Restore'],defaultId:0,cancelId:0,message:p.mode==='upload'?'Replace this account’s cloud backup with this computer’s library preferences?':'Merge cloud preferences? Matching games will use cloud favorites, collections and play status.'});
  if(choice.response!==1)return {message:'Canceled.'};
- const identity=accounts.url+':'+accounts.user!.id;
+ if(originalSession!==accounts.sessionIdentity()||!accounts.user)throw Error('Account changed. Try again.');
+ const identity=accounts.sessionIdentity();
  const result=await accounts.request('library',p.mode==='upload'?{entries:cloudGames(library.data.games)}:undefined);
- if(identity!==accounts.url+':'+accounts.user?.id)throw Error('Account changed. Try again.');
- if(p.mode==='restore')await library.mutate(d=>restoreCloud(d.games,result.entries));
+ if(identity!==accounts.sessionIdentity())throw Error('Account changed. Try again.');
+ if(p.mode==='restore')await library.mutate(d=>{if(identity!==accounts.sessionIdentity())throw Error('Account changed. Try again.');restoreCloud(d.games,result.entries)});
  return {message:result.updated?(p.mode==='upload'?'Backed up ':'Restored ')+result.entries.length+' games. Backup date: '+new Date(result.updated).toLocaleString():'No cloud backup exists yet.'};
  }
  case 'rememberSearch': {
@@ -943,6 +949,7 @@ else
             if(storageLocks.has(game.id))throw Error('Wait for this game move to finish.');
             if(!['diagnose','choose','rescan'].includes(p.action))throw Error('Choose a valid repair action.');
             if(p.action==='diagnose')return launchHealth(game,nativeTarget);
+            if(game.store==='steam'&&p.action==='choose')throw Error('Steam manages this executable. Use Rescan installation or Steam’s file verification.');
             if(running.has(game.id))throw Error('Close this game before changing its executable.');
             let executable:string|undefined;
             if(p.action==='rescan'){
@@ -1258,7 +1265,7 @@ else
         try {
           return await action(type, p);
         } finally {
-          if (!['snapshot','accountStatus','updates','announcementStatus','launcherUpdateStatus','checkLauncherUpdate','feedbackList','feedbackThread','feedbackImage'].includes(type)) changed();
+          if (!['displaySettings','diagnostics','snapshot','accountStatus','updates','announcementStatus','launcherUpdateStatus','checkLauncherUpdate','feedbackList','feedbackThread','feedbackImage'].includes(type)) changed();
         }
       });
       function createWindow() {
