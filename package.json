@@ -1,6 +1,6 @@
 {
   "name": "ember-launcher",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "An independent cross-platform desktop game library",
   "main": "dist/main.cjs",
   "scripts": {

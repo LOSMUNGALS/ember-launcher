@@ -20,7 +20,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - run: npm run test:accounts
+      - run: npm ci --prefix server
+      - run: npm --prefix server test
       - run: npm run package:mac -- --publish never
       - run: npm run smoke
       - name: Read version

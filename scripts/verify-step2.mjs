@@ -259,7 +259,7 @@ try {
   const preferences=await page.evaluate(()=>window.ember2.call('displaySettings'));
   await page.evaluate(p=>window.ember2.call('personalization',{...p,reduceMotion:true,highContrast:true}),preferences);
   await page.waitForFunction(()=>document.documentElement.dataset.motion==='reduced'&&document.documentElement.dataset.contrast==='high');
-  const diagnostics=await page.evaluate(()=>window.ember2.call('diagnostics'));assert.equal(diagnostics.version,'1.0.4');assert.equal(JSON.stringify(diagnostics).includes(userData),false);
+  const diagnostics=await page.evaluate(()=>window.ember2.call('diagnostics'));assert.equal(diagnostics.version,JSON.parse(await readFile('package.json','utf8')).version);assert.equal(JSON.stringify(diagnostics).includes(userData),false);
   const savesBefore=await page.evaluate(()=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'list'}));assert.ok(savesBefore.versions.length);
   const status=await page.evaluate(()=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'cloudStatus'}));assert.equal(status.revision,0);
   await page.evaluate(()=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'upload',expectedRevision:0}));
