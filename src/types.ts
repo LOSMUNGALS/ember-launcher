@@ -26,6 +26,7 @@ export interface SteamDashboard {
   errors?: string[];
 }
 export interface Game {
+  syncKey?:string;
   favorite?:boolean;
   hidden?:boolean;
   collections?:string[];

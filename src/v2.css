@@ -894,3 +894,10 @@ html:has(.download-picker[open]){overflow:hidden}
 }
 @media(max-height:720px){.account-screen{justify-content:flex-start;padding-top:24px}.account-brand{margin-bottom:16px}.account-brand img{width:54px;height:54px}.account-brand h1{font-size:42px}.account-card{padding:24px}}
 @media(max-width:600px){.v2-app,.v2-app.compact{grid-template-columns:76px minmax(0,1fr)}.account-card{padding:24px}.account-brand h1{font-size:44px}.stat-strip{grid-template-columns:1fr}}
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+:root[data-contrast="high"]{--muted:#e7f0f0;--accent:#ffd09e}
+:root[data-contrast="high"] body,:root[data-contrast="high"] .account-card,:root[data-contrast="high"] .v2-sidebar,:root[data-contrast="high"] .settings-panel{background:#080d0f;color:#fff}
+:root[data-contrast="high"] small,:root[data-contrast="high"] .muted,:root[data-contrast="high"] label{color:#e7f0f0!important}
+:root[data-contrast="high"] button,:root[data-contrast="high"] input,:root[data-contrast="high"] select,:root[data-contrast="high"] textarea{border-color:#bdcaca!important}
+:focus-visible{outline:3px solid #ffc391;outline-offset:3px}
+.settings-panel input[type="checkbox"]{display:inline-block;width:16px;height:16px;margin:0 8px 0 0;vertical-align:middle;accent-color:#f4b489}

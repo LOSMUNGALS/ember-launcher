@@ -34,6 +34,7 @@ export interface CatalogGame {
   updated: string;
 }
 export interface Preferences {
+  uiZoom?:number;notifyDownloads?:boolean;notifyErrors?:boolean;announcementBadge?:boolean;reduceMotion?:boolean;highContrast?:boolean;
   torrentNatTraversal?:boolean;
   resumeDownloads?: boolean;
   region: string;
@@ -164,7 +165,7 @@ export type V2Action =
   | "accountStatus" | "accountLogin" | "accountRegister" | "accountForgotPassword" | "accountLogout" | "accountConfigure" | "updates" | "publishUpdate"
   | "feedbackList" | "feedbackThread" | "feedbackImage" | "createFeedback" | "replyFeedback" | "moderateFeedback"
   | "repairGame"
-  | "cloudLibrary" | "organizeGame" | "gameArtwork" | "storage" | "moveGame" | "backupSaves" | "rememberSearch"
+  | "saveProtection" | "displaySettings" | "personalization" | "diagnostics" | "cloudLibrary" | "organizeGame" | "gameArtwork" | "storage" | "moveGame" | "backupSaves" | "rememberSearch"
   | "snapshot"
   | "importSteam"
   | "syncSteam"

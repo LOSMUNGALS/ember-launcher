@@ -256,6 +256,25 @@ try {
   const restoredLibrary=JSON.parse(await readFile(path.join(userData,'library.json'),'utf8'));
   assert.equal(restoredLibrary.games.find(g=>g.id==='library-fixture').favorite,true);
   assert.deepEqual(restoredLibrary.games.find(g=>g.id==='library-fixture').collections,['Cloud fixture']);
+  const preferences=await page.evaluate(()=>window.ember2.call('displaySettings'));
+  await page.evaluate(p=>window.ember2.call('personalization',{...p,reduceMotion:true,highContrast:true}),preferences);
+  await page.waitForFunction(()=>document.documentElement.dataset.motion==='reduced'&&document.documentElement.dataset.contrast==='high');
+  const diagnostics=await page.evaluate(()=>window.ember2.call('diagnostics'));assert.equal(diagnostics.version,'1.0.4');assert.equal(JSON.stringify(diagnostics).includes(userData),false);
+  const savesBefore=await page.evaluate(()=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'list'}));assert.ok(savesBefore.versions.length);
+  const status=await page.evaluate(()=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'cloudStatus'}));assert.equal(status.revision,0);
+  await page.evaluate(()=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'upload',expectedRevision:0}));
+  await writeFile(path.join(saves,'save.dat'),'second version');
+  const fetched=await page.evaluate(()=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'download'}));
+  await page.evaluate(version=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'restore',version}),fetched.id);
+  assert.equal(await readFile(path.join(saves,'save.dat'),'utf8'),'save fixture');
+  await assert.rejects(page.evaluate(()=>window.ember2.call('saveProtection',{id:'library-fixture',mode:'upload',expectedRevision:0})),/conflict/);
+  await page.getByRole('heading',{name:'Save protection',exact:true}).scrollIntoViewIfNeeded();
+  await page.screenshot({path:'artifacts/part4-save-protection.png'});
+  await page.getByTitle('Feedback',{exact:true}).click();
+  await page.getByRole('button',{name:'New post'}).click();
+  await page.getByRole('button',{name:'Attach diagnostics',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('textarea[aria-label="Post description"]')?.value.includes('ember-diagnostics-v1'));
+  assert.equal((await page.getByLabel('Post description').inputValue()).includes(userData),false);
   await page.evaluate(() => window.ember2.call("accountLogout"));
   await app.close();
   await launch();
@@ -265,7 +284,7 @@ try {
   await assert.rejects(stat(path.join(userData, "remembered-session.bin")));
   assert.deepEqual(failures, []);
   console.log(
-    "Step 2 UI passed: encrypted remembered login and logout across restart; fuzzy/recent search, collections, favorites, hidden games, cover import, review display, managed move and save backup.",
+    "Step 2 UI passed: encrypted remembered login and logout across restart; fuzzy/recent search, collections, favorites, hidden games, cover import, review display, managed move, versioned save backup, cloud transfer/conflict and restore, diagnostic report and accessibility preferences.",
   );
 } catch (error) {
   if (page) {

@@ -6,7 +6,7 @@ const actions = new Set([
   "accountStatus", "accountLogin", "accountRegister", "accountLogout", "accountConfigure", "updates", "publishUpdate",
   "feedbackList", "feedbackThread", "feedbackImage", "createFeedback", "replyFeedback", "moderateFeedback",
   "repairGame",
-  "cloudLibrary", "organizeGame", "gameArtwork", "storage", "moveGame", "backupSaves", "rememberSearch",
+  "saveProtection", "displaySettings", "personalization", "diagnostics", "cloudLibrary", "organizeGame", "gameArtwork", "storage", "moveGame", "backupSaves", "rememberSearch",
   "snapshot",
   "importSteam",
   "syncSteam",
@@ -50,3 +50,13 @@ contextBridge.exposeInMainWorld("ember2", {
   },
 });
 
+// Gestures work on the login screen as well as inside the launcher.
+let lastZoomWheel=0;
+window.addEventListener('wheel',event=>{
+ if(!event.ctrlKey)return;
+ event.preventDefault();event.stopPropagation();
+ if(!event.deltaY||Date.now()-lastZoomWheel<70)return;
+ lastZoomWheel=Date.now();ipcRenderer.send('ember-zoom',event.deltaY<0?'in':'out');
+},{passive:false,capture:true});
+window.addEventListener('mousedown',event=>{if(event.ctrlKey&&event.button===1){event.preventDefault();event.stopPropagation();ipcRenderer.send('ember-zoom','reset');}},{capture:true});
+window.addEventListener('auxclick',event=>{if(event.ctrlKey&&event.button===1){event.preventDefault();event.stopPropagation();}},{capture:true});

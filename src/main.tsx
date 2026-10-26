@@ -1,3 +1,5 @@
+import {SaveProtection} from './SaveProtection';
+import {Personalization,DisplayPreferences} from './Personalization';
 import {CloudLibrary} from './CloudLibrary';
 import { Trailer } from './Trailer';
 import {AccountGate, type AccountUser} from './AccountGate';
@@ -603,7 +605,7 @@ function App({user,logout}:{user:AccountUser;logout:()=>void}) {
           </nav>
         ))}
         <div className="sidebar-bottom">
-          <button className={page==='Updates'?'selected':''} title="Updates" aria-label="Updates" onClick={()=>navigate('Updates')}>✦ {!collapsed&&'Updates'}{unreadUpdates&&<span className="updates-unread" role="status" aria-label="Unread announcements"/>}</button>
+          <button className={page==='Updates'?'selected':''} title="Updates" aria-label="Updates" onClick={()=>navigate('Updates')}>✦ {!collapsed&&'Updates'}{snap?.state.preferences.announcementBadge!==false&&unreadUpdates&&<span className="updates-unread" role="status" aria-label="Unread announcements"/>}</button>
           {!collapsed&&<small>{user.displayName||user.username}{user.role==='admin'?' · Admin':''}</small>}
           <button title="Log out" aria-label="Log out" onClick={logout}>↪ {!collapsed&&'Log out'}</button>
           {!collapsed && (
@@ -1517,7 +1519,7 @@ function Settings({
         <button className="primary">Save preferences</button>
       </form>
       <SourceSettings sources={snap.state.sources} call={call}/>
-      <CloudLibrary/><StorageManager/>
+      <SaveProtection games={snap.games}/><Personalization/><CloudLibrary/><StorageManager/>
       {snap.launcherUpdate&&<section className="settings-panel"><h2>Launcher updates</h2><p>Installed version: {snap.launcherUpdate.currentVersion}</p><p>{snap.launcherUpdate.supported?'Ember checks for published releases at startup and every 15 minutes.':snap.launcherUpdate.reason}</p>{snap.launcherUpdate.error&&<p role="alert">{snap.launcherUpdate.error}</p>}<button disabled={!snap.launcherUpdate.supported||['checking','downloading','downloaded','installing'].includes(snap.launcherUpdate.phase)} onClick={()=>void call('checkLauncherUpdate')}>{snap.launcherUpdate.phase==='checking'?'Checking…':'Check for launcher updates'}</button></section>}
       <section className="settings-panel">
         <h2>Platform & storage</h2>
@@ -1535,7 +1537,7 @@ function Settings({
     </>
   );
 }
-createRoot(document.getElementById("root")!).render(<AccountGate>{(user,logout)=><App user={user} logout={logout}/>}</AccountGate>);
+createRoot(document.getElementById("root")!).render(<><DisplayPreferences/><AccountGate>{(user,logout)=><App user={user} logout={logout}/>}</AccountGate></>);
 
 
 

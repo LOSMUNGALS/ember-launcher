@@ -7,7 +7,7 @@
   },
   "scripts": {
     "start": "node index.mjs",
-    "test": "node --test --test-concurrency=1 service.test.mjs remote.test.mjs migration.test.mjs remote-http.test.mjs feedback.test.mjs cloud-library.test.mjs"
+    "test": "node --test --test-concurrency=1 service.test.mjs remote.test.mjs migration.test.mjs remote-http.test.mjs feedback.test.mjs cloud-library.test.mjs cloud-saves.test.mjs"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0"

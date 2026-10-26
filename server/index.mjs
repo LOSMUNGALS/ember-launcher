@@ -33,8 +33,8 @@ export async function startService({directory=path.resolve('.account-service'),p
    let body={};
    if(req.method==='POST'){
     if(!String(req.headers['content-type']).startsWith('application/json'))throw new ApiError(415,'Use JSON.');
-    if(route==='/api/library'||route==='/api/feedback'||route==='/api/feedback/reply')await accounts.authorize(token);
-    const maxBytes=route==='/api/library'||route==='/api/feedback'||route==='/api/feedback/reply'?2200000:65536;
+    if(route==='/api/saves'||route==='/api/library'||route==='/api/feedback'||route==='/api/feedback/reply')await accounts.authorize(token);
+    const maxBytes=route==='/api/saves'?3200000:route==='/api/library'||route==='/api/feedback'||route==='/api/feedback/reply'?2200000:65536;
     let bytes=0,chunks=[];for await(const chunk of req){bytes+=chunk.length;if(bytes>maxBytes)throw new ApiError(413,'Request is too large.');chunks.push(chunk);}
     try{body=JSON.parse(Buffer.concat(chunks).toString()||'{}');}catch{throw new ApiError(400,'Invalid JSON.');}
     if(!body||typeof body!=='object'||Array.isArray(body))throw new ApiError(400,'Invalid request.');
@@ -55,6 +55,7 @@ export async function startService({directory=path.resolve('.account-service'),p
     await accounts.bootstrap(body.password);result={message:'Administrator created. Log in with your email and new password.'};
    }else if(req.method==='POST'&&route==='/api/register')result=await accounts.register(body);
    else if(req.method==='POST'&&route==='/api/login')result=await accounts.login(body);
+   else if(['GET','POST'].includes(req.method)&&route==='/api/saves')result=await accounts.cloudSave(token,url.searchParams.get('key'),req.method==='POST'?body:undefined);
    else if(['GET','POST'].includes(req.method)&&route==='/api/library')result=await accounts.cloudLibrary(token,req.method==='POST'?body:undefined);
     else if(req.method==='GET'&&route==='/api/me')result={user:accounts.publicUser(await accounts.authorize(token))};
    else if(req.method==='POST'&&route==='/api/logout'){await accounts.logout(token);result={ok:true};}

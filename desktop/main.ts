@@ -1,4 +1,7 @@
-import {cloudGames,restoreCloud} from './cloud-library';
+import {SaveVersions} from './save-versions';
+import {displayZoom,changeZoom} from './display-zoom';
+import {diagnosticReport} from './diagnostics';
+import {cloudGames,restoreCloud,cloudKey} from './cloud-library';
 import { HostDownloads } from "./host-downloads";
 import {AccountClient} from './accounts';
 import {LauncherUpdates} from './launcher-updates';
@@ -22,6 +25,7 @@ import {
   nativeImage,
   safeStorage,
   screen,
+  Notification,
   Tray,
   Menu,
 } from "electron";
@@ -64,7 +68,9 @@ let win: BrowserWindow, downloads: DownloadManager, hostDownloads: HostDownloads
 let quitting = false;
 let tray: Tray | undefined;
 const running = new Map<string, number>();
+let observeChanges=()=>{};
 const changed = () => {
+  observeChanges();
   if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send("changed");
 };
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -111,6 +117,7 @@ else
         message = "",
         scanning = false,
         installing = false;
+      const saveVersions=new SaveVersions(path.join(root,'save-backups'));
       const storageLocks=new Set<string>();
       const report = (e: unknown) => {
         message = String(e);
@@ -122,6 +129,9 @@ else
         changed,
       );
       await downloads.initialize();
+      const notified=new Map(state.data.downloads.map(j=>[j.id,j.status]));
+      observeChanges=()=>{for(const job of state.data.downloads){const old=notified.get(job.id);notified.set(job.id,job.status);if(old&&old!==job.status&&accounts.user&&Notification.isSupported()&&((job.status==='completed'&&state.data.preferences.notifyDownloads)||(job.status==='failed'&&state.data.preferences.notifyErrors))){try{new Notification({title:'Ember',body:job.status==='completed'?'A download has finished. Open Downloads to install it.':'A download needs attention. Open Downloads for details.'}).show()}catch{}}}};
+
       hostDownloads = new HostDownloads(state, changed);
       const updaterSupported=app.isPackaged&&process.platform==='win32'&&!process.env.PORTABLE_EXECUTABLE_FILE;
       const updateDriver=updaterSupported?updaterDriver(await import('electron-updater')):undefined;
@@ -675,6 +685,7 @@ else
         return sourceSync;
       }
       async function action(type: V2Action, p: any = {}) {
+        if(type==='displaySettings')return {reduceMotion:state.data.preferences.reduceMotion===true,highContrast:state.data.preferences.highContrast===true,notifyDownloads:state.data.preferences.notifyDownloads===true,notifyErrors:state.data.preferences.notifyErrors===true,announcementBadge:state.data.preferences.announcementBadge!==false};
         if(type==='accountStatus') { if(accounts.user)await accounts.require().catch(()=>{});else{const restored=await accounts.restore();if(restored.user)await downloads.resumeRecovered()}return accounts.status(); }
         if(type==='accountLogin'){const status=await accounts.login(p);await downloads.resumeRecovered();return status;}
         if(type==='accountRegister') return accounts.request('register',p);
@@ -705,6 +716,34 @@ else
         if(type==='replyFeedback')return accounts.request('feedback/reply',p);
         if(type==='moderateFeedback')return accounts.request('feedback/moderate',p);
         switch (type) {
+          case 'saveProtection': {
+            const game=find(p.id),key=cloudKey(game);
+            if(p.mode==='list')return {versions:await saveVersions.list(key)};
+            if(p.mode==='cloudStatus'){const r=await accounts.request('saves?key='+encodeURIComponent(key));return {revision:r.revision,updated:r.updated,message:r.revision?'Cloud save is available.':'No cloud save yet.'}}
+            if(running.has(game.id)||storageLocks.has(game.id)||installing)throw Error('Close the game and finish other installation/save operations first.');
+            storageLocks.add(game.id);installing=true;
+            try{
+              if(p.mode==='download'){
+                const r=await accounts.request('saves?key='+encodeURIComponent(key));if(!r.payload)throw Error('No cloud save exists.');if(r.payload.key!==key)throw Error('Cloud save identity does not match.');
+                const local=await saveVersions.importCloud(r.payload);return {message:'Cloud revision '+r.revision+' saved as a local backup. Choose Restore this version to apply it.',...local};
+              }
+              if(!['backup','upload','restore'].includes(p.mode))throw Error('Choose a save operation.');
+              const selected=await dialog.showOpenDialog(win,{title:(p.mode==='restore'?'Choose the current save folder to replace for ':'Choose the save-data folder for ')+game.name,properties:['openDirectory']});if(selected.canceled)return {message:'Canceled.'};
+              if(p.mode==='restore'){
+                if(!await confirm('Restore this save version?',game.name+'\nCurrent saves will be backed up first. Close the game before continuing.'))return {message:'Canceled.'};
+                const result=await saveVersions.restore(String(p.version),key,game.name,selected.filePaths[0]);return {message:'Save version restored. Previous saves are preserved in the backup list and at '+result.rollback,...result};
+              }
+              if(p.mode==='upload'&&!await confirm(p.expectedRevision?'Replace cloud revision '+p.expectedRevision+'?':'Upload saves to your account?',game.name+'\nOnly select this game’s save folder. A new remote revision will block this upload.'))return {message:'Canceled.'};
+              const local=await saveVersions.snapshot(key,game.name,selected.filePaths[0]);
+              if(p.mode==='upload'){const previous=await accounts.request('saves?key='+encodeURIComponent(key));if(previous.revision!==p.expectedRevision)throw Error('Cloud save conflict: refresh cloud status and choose which version to keep. Local backup preserved.');if(previous.payload)await saveVersions.importCloud(previous.payload);const payload=await saveVersions.payload(local.id,key);const r=await accounts.request('saves?key='+encodeURIComponent(key),{expectedRevision:p.expectedRevision,payload});return {message:'Uploaded cloud revision '+r.revision+'. Refresh cloud status before uploading again.',...local}}
+              return {message:'Created a new verified save version.',...local};
+            }finally{storageLocks.delete(game.id);installing=false;changed()}
+          }
+          case 'diagnostics':return diagnosticReport(state.data,app.getVersion());
+          case 'personalization': {
+            for(const key of ['reduceMotion','highContrast','notifyDownloads','notifyErrors','announcementBadge'] as const){if(typeof p[key]!=='boolean')throw Error('Invalid personalization settings.');state.data.preferences[key]=p[key]}
+            await state.save();return action('displaySettings');
+          }
           case 'cloudLibrary': {
  await accounts.require(true);
  if(!['upload','restore'].includes(p.mode))throw Error('Choose backup or restore.');
@@ -737,8 +776,11 @@ else
             }return {games:rows};
           }
           case 'backupSaves': {
-            const game=find(p.id),selected=await dialog.showOpenDialog(win,{title:'Choose the save-data folder for '+game.name,properties:['openDirectory']});if(selected.canceled)return;
-            const source=selected.filePaths[0];if(path.resolve(source)===path.parse(source).root)throw Error('Choose a specific save-data folder, not a drive.');const parent=path.join(root,'save-backups');await mkdir(parent,{recursive:true});const target=path.join(parent,randomUUID());await verifiedFolderCopy(source,target);await writeFile(path.join(target,'.ember-backup.json'),JSON.stringify({game:game.name,created:new Date().toISOString(),source}),{flag:'wx'});shell.showItemInFolder(target);return {directory:target};
+            const game=find(p.id);if(running.has(game.id)||storageLocks.has(game.id)||installing)throw Error('Close the game and finish installation/save operations first.');
+            storageLocks.add(game.id);installing=true;
+            try{const selected=await dialog.showOpenDialog(win,{title:'Choose the save-data folder for '+game.name,properties:['openDirectory']});if(selected.canceled)return;
+            const backup=await saveVersions.snapshot(cloudKey(game),game.name,selected.filePaths[0]);const directory=path.join(backup.directory,'files');shell.showItemInFolder(directory);return {directory,version:backup.id};
+            }finally{storageLocks.delete(game.id);installing=false;changed()}
           }
           case 'moveGame': {
             const game=find(p.id);if(running.has(game.id)||storageLocks.has(game.id)||installing)throw Error('Close the game and wait for other installation operations first.');if(game.managed?.method!=='zip')throw Error('Only Ember-managed archive installations can move here. Use the original installer for this game.');
@@ -975,6 +1017,7 @@ else
               state.data.rankings.nextRefresh = 0;
             }
             state.data.preferences = {
+              ...state.data.preferences,
               resumeDownloads:v.resumeDownloads!==false,
               torrentNatTraversal:v.torrentNatTraversal===true,
               region: v.region,
@@ -1240,8 +1283,14 @@ else
           if(win.isDestroyed()||win.webContents.isDestroyed())return;
           const display=screen.getDisplayMatching(win.getBounds());
           const width=Math.min(win.getContentBounds().width,display.workAreaSize.width);
-          win.webContents.setZoomFactor(Math.max(1,Math.min(1.6,width/1920)));
+          win.webContents.setZoomFactor(displayZoom(width,state.data.preferences.uiZoom));
         };
+        ipcMain.removeAllListeners('ember-zoom');
+        ipcMain.on('ember-zoom',(event,direction)=>{
+          if(win.isDestroyed()||event.sender!==win.webContents||event.senderFrame!==win.webContents.mainFrame||!['in','out','reset'].includes(direction))return;
+          state.data.preferences.uiZoom=direction==='reset'?1:changeZoom(state.data.preferences.uiZoom||1,direction==='in'?1:-1);
+          fitDisplay();void state.save().catch(report);
+        });
         win.on('resize',fitDisplay);win.on('move',fitDisplay);
         win.webContents.on('did-finish-load',fitDisplay);
         win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));

@@ -20,10 +20,13 @@ test('hosted adapter preserves accounts, approvals and announcements across serv
   await a.register({email:'player@example.com',username:'player',password});await a.decide(admin,id,'approved');
   const user=(await a.login({identifier:'player',password})).token;
   await a.cloudLibrary(user,{entries:[{key:'steam-123',steamId:'123',name:'Fixture',saved:true,favorite:false,hidden:false,collections:[],playStatus:'backlog'}]});assert.equal((await a.cloudLibrary(admin)).entries.length,0);
+  const {createHash}=await import('node:crypto');const contents='cloud-save-fixture';const payload={key:'steam-123',name:'Fixture',files:[{path:'slot.dat',data:Buffer.from(contents).toString('base64'),sha256:createHash('sha256').update(contents).digest('hex')}]};
+  await a.cloudSave(user,'steam-123',{expectedRevision:0,payload});await assert.rejects(a.cloudSave(user,'steam-123',{expectedRevision:0,payload}),/conflict/);assert.equal((await a.cloudSave(admin,'steam-123')).revision,0);
+
   await assert.rejects(a.publish(user,{body:'unauthorized'}),/Administrator/);
   await Promise.all(Array.from({length:5},(_,i)=>a.publish(admin,{body:'Update '+i})));
   const release=await a.saveRelease(admin,{version:'1.0.1',title:'Test',body:'Description',published:true});assert.ok(release.id);
-  await a.close();a=await open();assert.equal(await a.setupNeeded(),false);assert.equal((await a.cloudLibrary(user)).entries[0].name,'Fixture');assert.equal((await a.posts(user)).length,5);assert.equal((await a.release(user,'1.0.1')).title,'Test');
+  await a.close();a=await open();assert.equal(await a.setupNeeded(),false);assert.equal((await a.cloudLibrary(user)).entries[0].name,'Fixture');assert.equal((await a.cloudSave(user,'steam-123')).revision,1);assert.equal((await a.posts(user)).length,5);assert.equal((await a.release(user,'1.0.1')).title,'Test');
   const messages=[];await a.forgotPassword('player@example.com',async message=>messages.push(message),'https://accounts.example.com');const reset=new URL(messages[0].url).hash.slice(7);
   await a.resetPassword({token:reset,password:password+'new'});await assert.rejects(a.authorize(user),/expired/);
   const next=(await a.login({identifier:'player',password:password+'new'})).token;await a.decide(admin,id,'revoked');await assert.rejects(a.authorize(next),/revoked/);

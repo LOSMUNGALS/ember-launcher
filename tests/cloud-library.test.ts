@@ -8,3 +8,5 @@ test('cloud preferences omit local paths and restore without pretending installa
  restoreCloud(games,entries);assert.equal(games.length,1);
  const installed=[local];restoreCloud(installed,[{...entries[0],favorite:false}]);assert.equal(local.executable,'C:\\private\\game.exe');assert.equal(local.installed,true);assert.equal(local.favorite,false);
 });
+
+test('restored non-Steam identities survive another backup and restore',()=>{const original:any={id:'fixture-local',name:'Local',saved:true};const entries=cloudGames([original]),games:any[]=[];restoreCloud(games,entries);restoreCloud(games,cloudGames(games));assert.equal(games.length,1);assert.equal(cloudGames(games)[0].key,entries[0].key);});

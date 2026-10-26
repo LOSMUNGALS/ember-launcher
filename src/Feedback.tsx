@@ -214,6 +214,7 @@ function Composer({
             }}
           />
         </label>
+        <button type="button" disabled={busy||attaching} onClick={async()=>{try{const report=await api('diagnostics');const text='\n\nEmber diagnostics (no paths, credentials or URLs):\n'+JSON.stringify(report,null,2);if(body.length+text.length>10000)throw Error('Not enough room in this message. Add diagnostics in a separate reply.');setBody(old=>old+text)}catch(e){setError(String(e))}}}>Attach diagnostics</button>
         <small>Up to 3 images · large images resize automatically</small>
         <button
           className="primary"

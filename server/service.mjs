@@ -1,3 +1,4 @@
+import {validateSave} from './cloud-saves.mjs';
 import {cloudEntries} from './cloud-library.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {randomBytes, scrypt as derive, timingSafeEqual, createHash} from 'node:crypto';
@@ -39,6 +40,7 @@ export class Accounts {
  constructor(file,adminEmail,now=()=>Date.now()){
   this.now=now;this.adminEmail=adminEmail.trim().toLowerCase();this.db=new DatabaseSync(file);
   this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
+   CREATE TABLE IF NOT EXISTS cloud_saves(userId INTEGER NOT NULL REFERENCES users(id),gameKey TEXT NOT NULL,payload TEXT NOT NULL,revision INTEGER NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(userId,gameKey));
    CREATE TABLE IF NOT EXISTS cloud_libraries(userId INTEGER PRIMARY KEY REFERENCES users(id),entries TEXT NOT NULL,updated INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY,email TEXT UNIQUE COLLATE NOCASE,username TEXT UNIQUE COLLATE NOCASE,password TEXT NOT NULL,status TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'user',retryAt INTEGER NOT NULL DEFAULT 0,created INTEGER NOT NULL);
    CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,userId INTEGER REFERENCES users(id),expires INTEGER);
@@ -51,6 +53,20 @@ export class Accounts {
    CREATE TABLE IF NOT EXISTS feedback_images(id INTEGER PRIMARY KEY AUTOINCREMENT,messageId INTEGER NOT NULL REFERENCES feedback_messages(id),data TEXT NOT NULL);
    CREATE INDEX IF NOT EXISTS feedback_message_thread ON feedback_messages(threadId,id);
    CREATE INDEX IF NOT EXISTS feedback_image_message ON feedback_images(messageId);`);
+ }
+ cloudSave(token,key,p){
+ const user=this.authorize(token);if(typeof key!=='string'||! /^[\w-]{1,220}$/.test(key))fail(400,'Invalid game identity.');
+ const row=this.db.prepare('SELECT revision,payload,updated FROM cloud_saves WHERE userId=? AND gameKey=?').get(user.id,key);
+ if(p!==undefined){
+ if(!Number.isSafeInteger(p.expectedRevision)||p.expectedRevision<0)fail(400,'Invalid save revision.');
+ let payload;try{payload=validateSave(p.payload)}catch(e){fail(400,e.message)}if(payload.key!==key)fail(400,'Save belongs to another game.');
+ if((row?.revision||0)!==p.expectedRevision)fail(409,'Cloud save conflict: another device uploaded a version. Refresh cloud status, then choose which version to keep.');
+ if(!row&&Number(this.db.prepare('SELECT COUNT(*) n FROM cloud_saves WHERE userId=?').get(user.id).n)>=20)fail(400,'Cloud saves currently support up to 20 games per account.');
+ const revision=(row?.revision||0)+1,updated=this.now();
+ const result=row?this.db.prepare('UPDATE cloud_saves SET payload=?,revision=?,updated=? WHERE userId=? AND gameKey=? AND revision=?').run(JSON.stringify(payload),revision,updated,user.id,key,p.expectedRevision):this.db.prepare('INSERT OR IGNORE INTO cloud_saves(userId,gameKey,payload,revision,updated) VALUES(?,?,?,?,?)').run(user.id,key,JSON.stringify(payload),revision,updated);
+ if(!Number(result.changes))fail(409,'Cloud save conflict. Refresh cloud status before trying again.');return {revision,updated};
+ }
+ return {revision:row?.revision||0,updated:row?.updated||0,payload:row?JSON.parse(row.payload):null};
  }
  cloudLibrary(token,p){
  const user=this.authorize(token);
