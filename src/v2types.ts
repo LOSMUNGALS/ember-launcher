@@ -44,6 +44,7 @@ export interface Preferences {
   catalogUrl: string;
 }
 export interface PackageSource {
+  bundledRevision?:number;
   lastAttempt?: string;
   lastSuccess?: string;
   localSnapshot?: boolean;

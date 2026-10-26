@@ -18,7 +18,7 @@ for(let pass=0;pass<2;pass++){
   }
   const sources=await page.evaluate(async()=>{const result=await window.ember2.call('snapshot');return result.state.sources.map(s=>({name:s.name,count:s.packages.length}));});
   assert.deepEqual(sources.map(s=>s.name),directory.sources.map(s=>s.name));
-  assert.equal(sources.reduce((n,s)=>n+s.count,0),26115);
+  assert.equal(sources.reduce((n,s)=>n+s.count,0),28204);
   const delta=await page.evaluate(async()=>{
     const full=await window.ember2.call('snapshot');
     const compact=await window.ember2.call('snapshot',{sourcesRevision:full.sourcesRevision});
@@ -26,6 +26,6 @@ for(let pass=0;pass<2;pass++){
   });
   assert.ok(delta.omitted);assert.ok(delta.compact<delta.full/10);
   console.log('PASS: unchanged catalogs omitted from progress snapshots ('+delta.full+' → '+delta.compact+' bytes).');
-  console.log('PASS: '+(pass?'restart preserved':'UI IPC imported')+' all six catalogs and 26,115 options.');
+  console.log('PASS: '+(pass?'restart preserved':'UI IPC imported')+' all seven catalogs and 28,204 options.');
  } finally{await app.close();}
 }

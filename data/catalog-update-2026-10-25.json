@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-25",
+  "catalogRevision": 4,
+  "totalBundledOptions": 28204,
+  "updates": [
+    {
+      "file": "fitgirlrepacks.json",
+      "name": "fitgirl",
+      "previousRows": 7189,
+      "suppliedRows": 7204,
+      "newReleaseRows": 23,
+      "updatedRows": 0,
+      "retainedOlderRows": 8,
+      "totalRows": 7212,
+      "sha256": "b8c764dabf97384ddfd245cd3e4c5b99000efb3c7815be608f43538b27c4064f"
+    },
+    {
+      "file": "steamrip.json",
+      "name": "SteamRip",
+      "previousRows": 1575,
+      "suppliedRows": 1579,
+      "newReleaseRows": 4,
+      "updatedRows": 23,
+      "retainedOlderRows": 0,
+      "totalRows": 1579,
+      "sha256": "c508bcfcd49f4808eb1249b3daeec9e589ac1999d46bb17865fc6815206d0ba2"
+    },
+    {
+      "file": "onlinefix.json",
+      "name": "onlinefix",
+      "previousRows": 2826,
+      "suppliedRows": 2840,
+      "newReleaseRows": 14,
+      "updatedRows": 50,
+      "retainedOlderRows": 0,
+      "totalRows": 2840,
+      "sha256": "e9c8a72b1d85e73230b57199a19fd74f9432547b581a46ad67d068a99ded9736"
+    },
+    {
+      "file": "kazumi.json",
+      "name": "Kazumi",
+      "previousRows": 0,
+      "suppliedRows": 2055,
+      "newReleaseRows": 2055,
+      "updatedRows": 0,
+      "retainedOlderRows": 0,
+      "totalRows": 2055,
+      "sha256": "88e68e8a98d0052cc7225a4381d022a7825d73f89c4cabf065a43bf700751b4d"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import {randomUUID,randomBytes} from 'node:crypto';
 import {mkdtemp,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {parseSourceFeed,safeMagnet,defaultSources,bundledSources,importSourceJson,migrateSources,sourceKey} from '../desktop/sources';
+import {parseSourceFeed,safeMagnet,defaultSources,bundledSources,importSourceJson,migrateSources,sourceKey,upgradeBundledSources} from '../desktop/sources';
 import {packageMatches,downloadOptions} from '../src/package-matching';
 import {runTorrent,torrentDirectory,validateTorrentFiles} from '../desktop/torrents';
 import type {DownloadJob} from '../src/v2types';
@@ -52,7 +52,7 @@ test('community feeds import magnets and hosts without inventing integrity or pl
 });
 test('FitGirl archive adapter and source defaults use distinct origins',()=>{
  assert.equal(parseSourceFeed([{name:'Example',magnet,packed:'1 GB'}]).packages.length,1);
- const sources=defaultSources();assert.equal(new Set(sources.map(s=>s.url)).size,6);
+ const sources=defaultSources();assert.equal(new Set(sources.map(s=>s.url)).size,7);
  assert.ok(sources.find(s=>s.name==='SteamRip')?.url.endsWith('/steamrip.json'));
 });
 test('magnet sanitization drops arbitrary trackers and web seeds',()=>{
@@ -65,8 +65,8 @@ test('magnet sanitization drops arbitrary trackers and web seeds',()=>{
 
 test('supplied catalogs load offline with exact names and usable release links',async()=>{
  const sources=await bundledSources(path.resolve('data/catalogs'));
- assert.deepEqual(sources.map(s=>s.name),['SteamRip','fitgirl','onlinefix','DODI','GOG','KaOsKrew']);
- assert.equal(sources.length,6);assert.ok(sources.every(s=>s.packages.length>1000));
+ assert.deepEqual(sources.map(s=>s.name),['SteamRip','fitgirl','onlinefix','DODI','GOG','KaOsKrew','Kazumi']);
+ assert.equal(sources.length,7);assert.ok(sources.every(s=>s.packages.length>1000));
  assert.ok(sources.every(s=>!s.fallbackUrl));
 });
 test('source import distinguishes descriptors from catalogs and migration preserves custom sources',()=>{
@@ -74,7 +74,7 @@ test('source import distinguishes descriptors from catalogs and migration preser
  assert.equal(descriptors[0].packages.length,0);
  const catalog=importSourceJson({name:'Exact NAME',downloads:[{title:'Fixture',uris:[magnet]}]});
  assert.equal(catalog[0].name,'Exact NAME');assert.equal(catalog[0].localSnapshot,true);
- assert.equal(migrateSources(descriptors,1).length,7);
+ assert.equal(migrateSources(descriptors,1).length,8);
  assert.deepEqual(migrateSources([],3),[]);
  assert.equal(sourceKey('https://example.com/a.json?utm_source=chatgpt.com'),'https://example.com/a.json');
 });
@@ -112,4 +112,12 @@ test('unavailable torrent fails with actionable metadata error', {timeout:10000}
  const job:DownloadJob={id:randomUUID(),package:pkg,sourceId:'test',status:'connecting',downloaded:0,total:0,speed:0,averageSpeed:0,created:new Date().toISOString(),updated:new Date().toISOString(),destination:root,attempts:1,priority:0,verified:false};
  await assert.rejects(runTorrent(job,new AbortController().signal,()=>{},async()=>{}, {clientOptions:{dht:false},metadataTimeoutMs:100}), /Choose another release\/source/);
  assert.equal(job.peers,0);
+});
+test('bundled upgrades preserve source IDs, disabled choices, custom sources and unchanged catalogs',()=>{
+ const fixture=(id:string,url:string,revision:number)=>({id,url,name:id,enabled:true,description:'',packages:[{id:id+'-new'} as any],bundledRevision:revision});
+ const old={...fixture('kept-id','https://example.com/a.json',3),enabled:false,packages:[{id:'prior-version'} as any]},untouched=fixture('dodi','https://example.com/dodi.json',3),custom=fixture('custom','https://example.com/custom.json',1);
+ const update=fixture('new-id','https://example.com/a.json',4),kazumi={...fixture('kazumi','https://example.com/kazumi.json',4),localSnapshot:true};
+ const result=upgradeBundledSources([old,untouched,custom],[update,{...untouched,packages:[]},kazumi],3);
+ assert.equal(result[0].id,'kept-id');assert.equal(result[0].enabled,false);assert.deepEqual(result[0].packages.map(p=>p.id),['new-id-new','prior-version']);assert.equal(result[1],untouched);assert.equal(result[2],custom);assert.equal(result[3].localSnapshot,true);
+ assert.deepEqual(upgradeBundledSources(result,[update,untouched,kazumi],4),result);
 });

@@ -43,7 +43,7 @@ import { StateStore } from "./state";
 import { CatalogService, appId, UnavailableGameError } from "./catalog";
 import { ownedGames } from "./ownership";
 import { httpsUrl } from "./http";
-import { loadSource, bundledSources, sourceKey, importSourceJson, refreshSource } from "./sources";
+import { loadSource, bundledSources, upgradeBundledSources, BUNDLED_CATALOG_VERSION, sourceKey, importSourceJson, refreshSource } from "./sources";
 import { DownloadManager } from "./downloads";
 import { extractZip, nativePackage, uninstallManaged } from "./installations";
 import { launchPlan, checkTarget, windowsExecutable } from "./platform";
@@ -89,11 +89,10 @@ else
       await accounts.load();
       const announcementRead=new AnnouncementRead(path.join(root,'announcement-read.json'));
       await announcementRead.load();
-      if ((state.data.defaultSourcesVersion || 0) < 3 && !process.env.EMBER_DATA_DIR) {
+      if ((state.data.defaultSourcesVersion || 0) < BUNDLED_CATALOG_VERSION && !process.env.EMBER_DATA_DIR) {
         const supplied = await bundledSources(path.join(__dirname,'catalogs'));
-        const keys = new Set(supplied.map(s=>sourceKey(s.url)));
-        state.data.sources = [...state.data.sources.filter(s=>!s.id.startsWith('default-') && !keys.has(sourceKey(s.url))), ...supplied];
-        state.data.defaultSourcesVersion = 3;
+        state.data.sources = upgradeBundledSources(state.data.sources,supplied,state.data.defaultSourcesVersion||0);
+        state.data.defaultSourcesVersion = BUNDLED_CATALOG_VERSION;
         await state.save();
       }
       await library.mutate((d) => {

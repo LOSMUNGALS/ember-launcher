@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "application": "Ember Launcher",
-  "description": "Source URL directory only; no game records or download integrations included. URLs have not been verified.",
+  "description": "Bundled source catalogs and configured refresh locations. Snapshot-only feeds remain available offline.",
   "sources": [
     {
       "id": "steamrip",
@@ -11,7 +11,8 @@
       "integration_status": "unverified",
       "enabled": false,
       "usage": "reference_only",
-      "file": "steamrip.json"
+      "file": "steamrip.json",
+      "catalog_revision": 4
     },
     {
       "id": "fitgirl",
@@ -21,7 +22,8 @@
       "integration_status": "unverified",
       "enabled": false,
       "usage": "reference_only",
-      "file": "fitgirlrepacks.json"
+      "file": "fitgirlrepacks.json",
+      "catalog_revision": 4
     },
     {
       "id": "onlinefix",
@@ -31,7 +33,8 @@
       "integration_status": "unverified",
       "enabled": false,
       "usage": "reference_only",
-      "file": "onlinefix.json"
+      "file": "onlinefix.json",
+      "catalog_revision": 4
     },
     {
       "id": "dodi",
@@ -41,7 +44,8 @@
       "integration_status": "unverified",
       "enabled": false,
       "usage": "reference_only",
-      "file": "dodi.json"
+      "file": "dodi.json",
+      "catalog_revision": 3
     },
     {
       "id": "gog",
@@ -51,7 +55,8 @@
       "integration_status": "unverified",
       "enabled": false,
       "usage": "reference_only",
-      "file": "gog.json"
+      "file": "gog.json",
+      "catalog_revision": 3
     },
     {
       "id": "kaoskrew",
@@ -61,7 +66,20 @@
       "integration_status": "unverified",
       "enabled": false,
       "usage": "reference_only",
-      "file": "kaoskrew.json"
+      "file": "kaoskrew.json",
+      "catalog_revision": 3
+    },
+    {
+      "id": "kazumi",
+      "name": "Kazumi",
+      "source_url": "https://raw.githubusercontent.com/LOSMUNGALS/ember-launcher/codex/initial-import/data/catalogs/kazumi.json",
+      "source_format": "json",
+      "integration_status": "bundled_snapshot",
+      "enabled": true,
+      "usage": "bundled_catalog",
+      "file": "kazumi.json",
+      "snapshot_only": true,
+      "catalog_revision": 4
     }
   ]
 }

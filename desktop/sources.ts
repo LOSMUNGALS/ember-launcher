@@ -5,12 +5,25 @@ import { randomUUID, createHash } from "node:crypto";
 import directory from './source-directory.json';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
+export const BUNDLED_CATALOG_VERSION=4;
+export function upgradeBundledSources(current:PackageSource[],supplied:PackageSource[],previousVersion:number){
+ const result=[...current];
+ for(const source of supplied){
+  const index=result.findIndex(s=>s.id===source.id||sourceKey(s.url)===sourceKey(source.url));
+  if(index>=0&&(source.bundledRevision||3)<=previousVersion)continue;
+  if(index<0){if((source.bundledRevision||3)>previousVersion)result.push(source);continue;}
+  const old=result[index],ids=new Set(source.packages.map(p=>p.id));
+  // Keep source IDs for existing download records and preserve user enable/disable choices.
+  result[index]={...source,id:old.id,enabled:old.enabled,packages:[...source.packages,...old.packages.filter(p=>!ids.has(p.id))]};
+ }
+ return result;
+}
 export async function bundledSources(root: string): Promise<PackageSource[]> {
   return Promise.all(directory.sources.map(async row=>({
     ...configuredSource(row.name,row.source_url),
     ...parseSourceFeed(JSON.parse((await readFile(path.join(root,row.file),'utf8')).replace(/^\uFEFF/,''))),
     id:'default-'+createHash('sha256').update(sourceKey(row.source_url)).digest('hex').slice(0,16),
-    updated:new Date().toISOString(), snapshotOrigin:'Bundled catalog',
+    updated:new Date().toISOString(), snapshotOrigin:row.snapshot_only?'Bundled catalog (provider feed URL not supplied)':'Bundled catalog',localSnapshot:row.snapshot_only===true,bundledRevision:row.catalog_revision,
   })));
 }
 export const sourceKey = (value: string) => { const u = httpsUrl(value); u.searchParams.delete('utm_source'); return u.href; };
@@ -207,7 +220,7 @@ export function parseSourceFeed(raw: any): {name: string; description: string; p
   if (rows.length && !packages.length) throw Error("This JSON contains no supported HTTPS or magnet download links.");
   return {name,description:"Community feed. Availability and versions are supplied by its publisher.",packages};
 }
-export const defaultSources = (): PackageSource[] => directory.sources.map(row=>({...configuredSource(row.name,row.source_url),id:'default-'+createHash('sha256').update(sourceKey(row.source_url)).digest('hex').slice(0,16)}));
+export const defaultSources = (): PackageSource[] => directory.sources.map(row=>({...configuredSource(row.name,row.source_url),localSnapshot:row.snapshot_only===true,bundledRevision:row.catalog_revision,id:'default-'+createHash('sha256').update(sourceKey(row.source_url)).digest('hex').slice(0,16)}));
 export async function refreshSource(source: PackageSource,loader:typeof loadSource=loadSource) {
   if(source.localSnapshot) return source;
   const lastAttempt=new Date().toISOString();
