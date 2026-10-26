@@ -14,9 +14,9 @@ const hashFile=async(file,algorithm,encoding)=>{const hash=createHash(algorithm)
 const installer=path.join(directory,filename),size=(await stat(installer)).size,sha512=await hashFile(installer,'sha512','base64');
 assert.equal(meta.files[0].size,size);assert.equal(meta.files[0].sha512,sha512);assert.equal(meta.sha512,sha512);
 const blockmap=JSON.parse(gunzipSync(await readFile(installer+'.blockmap')).toString());assert.ok(blockmap.files.length&&blockmap.version);
-const packageInfo=JSON.parse(extractFile(archive,'package.json').toString()),buildInfo=JSON.parse(extractFile(archive,'dist/build-info.json').toString());
+const packageInfo=JSON.parse(extractFile(archive,'package.json').toString()),buildInfo=JSON.parse(extractFile(archive,path.join('dist','build-info.json')).toString());
 assert.equal(packageInfo.version,version);assert.equal(buildInfo.version,version);assert.equal(buildInfo.sourceDirty,false,'Release must be built from a clean source checkout');assert.match(buildInfo.sourceCommit,/^[a-f0-9]{40}$/);
 const directoryInfo=JSON.parse(await readFile('desktop/source-directory.json','utf8'));
-for(const source of directoryInfo.sources){const packed=extractFile(archive,'dist/catalogs/'+source.file);assert.deepEqual(packed,await readFile(path.join('data/catalogs',source.file)),source.file);}
+for(const source of directoryInfo.sources){const packed=extractFile(archive,path.join('dist','catalogs',source.file));assert.deepEqual(packed,await readFile(path.join('data/catalogs',source.file)),source.file);}
 const report={...buildInfo,installer:filename,bytes:size,sha512,sha256:await hashFile(installer,'sha256','hex'),blockmap:filename+'.blockmap',catalogs:directoryInfo.sources.length,verification:'Installer size and SHA-512 match latest.yml; version/build provenance and embedded catalogs match source.'};
 await writeFile(path.join(directory,'BUILD-INFO.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
